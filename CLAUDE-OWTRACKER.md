@@ -1,7 +1,7 @@
 # PROJECT: OWTRACKER — Local Overwatch Match and Player Tracker
 
 ## Mission
-Build a local-only desktop tool that ingests Overwatch 2 scoreboard screenshots, extracts match and per-player statistics, and stores them in a personal SQLite database. The operator double-clicks a launcher, a local web server starts, the browser opens, screenshots are dropped in, extracted values are reviewed and corrected, and the match is committed. Over time the database answers questions like "what is my win rate on Antarctic Peninsula", "how often do I win when LECHEFFEUR is on my team", and "which heroes do I perform best against".
+Build a local-only desktop tool that ingests Overwatch 2 scoreboard screenshots, extracts match and per-player statistics, and stores them in a personal SQLite database. The operator double-clicks a launcher, a local web server starts, the browser opens, screenshots are dropped in, extracted values are reviewed and corrected, and the match is committed. Over time the database answers questions like "what is my win rate on Antarctic Peninsula", "how often do I win when PLAYER_B is on my team", and "which heroes do I perform best against".
 
 The finished artifact is a zip folder. Unzip it, double-click `run.bat`, and it works — on a machine that has never had Python installed and is not connected to the internet.
 

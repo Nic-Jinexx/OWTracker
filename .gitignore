@@ -9,6 +9,10 @@ data/
 samples/*.png
 samples/*.expected.json
 
+# The key mapping PLAYER_A..PLAYER_G back to the real gamertags. Publishing
+# this would undo the pseudonymization it exists to support.
+samples/identities.local.md
+
 # Build output
 dist/
 *.zip

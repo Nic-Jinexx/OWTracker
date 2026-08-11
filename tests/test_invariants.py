@@ -150,7 +150,7 @@ class TestCommitPath(DatabaseTestCase):
         payload["rows"][0]["player_name"] = draft_module.field("NICCS")
         payload["rows"][0]["hero_id"] = draft_module.field(self.hero_id("Ana"))
         payload["rows"][0]["eliminations"] = draft_module.field(12)
-        payload["rows"][1]["player_name"] = draft_module.field("LECHEFFEUR")
+        payload["rows"][1]["player_name"] = draft_module.field("PLAYER_B")
         # An anonymized enemy: hero and stats, no name.
         payload["rows"][5]["hero_id"] = draft_module.field(self.hero_id("Reaper"))
         payload["rows"][5]["deaths"] = draft_module.field(9)
@@ -158,9 +158,11 @@ class TestCommitPath(DatabaseTestCase):
 
         match_id = commit_draft(self.conn, draft_id)
 
-        names = [r["display_name"] for r in self.conn.execute(
-            "SELECT display_name FROM players ORDER BY display_name")]
-        self.assertEqual(names, ["LECHEFFEUR", "NICCS"])
+        # Which players were created, not what order they sort in — the latter
+        # is a property of the names the test happens to pick.
+        names = {r["display_name"] for r in self.conn.execute(
+            "SELECT display_name FROM players")}
+        self.assertEqual(names, {"PLAYER_B", "NICCS"})
 
         anonymous = self.conn.execute(
             "SELECT player_id, deaths FROM match_players "
@@ -233,7 +235,7 @@ class TestCommitPath(DatabaseTestCase):
             payload["meta"]["result"] = draft_module.field("win")
             payload["rows"][0]["is_me"] = True
             payload["rows"][0]["player_name"] = draft_module.field("NICCS")
-            payload["rows"][1]["player_name"] = draft_module.field("LECHEFFEUR")
+            payload["rows"][1]["player_name"] = draft_module.field("PLAYER_B")
             commit_draft(self.conn, self.insert_draft(payload))
 
         rows = self.conn.execute(
@@ -381,7 +383,7 @@ class TestNameplateLearning(DatabaseTestCase):
         ).fetchall()
 
     def test_a_typed_name_teaches_its_signature(self):
-        self._commit(name="DEREK", signature="ab" * 60, width=332)
+        self._commit(name="PLAYER_A", signature="ab" * 60, width=332)
         plates = self._plates()
         self.assertEqual(len(plates), 1)
         self.assertEqual(plates[0]["phash"], "ab" * 60)
@@ -390,13 +392,13 @@ class TestNameplateLearning(DatabaseTestCase):
     def test_the_width_is_recorded(self):
         """`commit.py` has always read `nameplate_width`; nothing set it until
         the extractor did, so the column was silently always NULL."""
-        self._commit(name="DEREK", signature="cd" * 60, width=332)
+        self._commit(name="PLAYER_A", signature="cd" * 60, width=332)
         self.assertEqual(self._plates()[0]["width_px"], 332)
 
     def test_seeing_the_same_signature_again_counts_it_rather_than_duplicating(self):
-        self._commit(name="DEREK", signature="ab" * 60, width=332)
+        self._commit(name="PLAYER_A", signature="ab" * 60, width=332)
         player = self.conn.execute(
-            "SELECT id FROM players WHERE display_name = 'DEREK'").fetchone()["id"]
+            "SELECT id FROM players WHERE display_name = 'PLAYER_A'").fetchone()["id"]
         self._commit(player_id=player, signature="ab" * 60, width=332)
         plates = self._plates()
         self.assertEqual(len(plates), 1)
@@ -405,9 +407,9 @@ class TestNameplateLearning(DatabaseTestCase):
     def test_a_new_appearance_adds_a_second_signature(self):
         """The whole design: an animated nameplate accumulates coverage of its
         frames, so recall improves the more often someone is seen."""
-        self._commit(name="DEREK", signature="ab" * 60, width=332)
+        self._commit(name="PLAYER_A", signature="ab" * 60, width=332)
         player = self.conn.execute(
-            "SELECT id FROM players WHERE display_name = 'DEREK'").fetchone()["id"]
+            "SELECT id FROM players WHERE display_name = 'PLAYER_A'").fetchone()["id"]
         self._commit(player_id=player, signature="ef" * 60, width=330)
         plates = self._plates()
         self.assertEqual(len(plates), 2)

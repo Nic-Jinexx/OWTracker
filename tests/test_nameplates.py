@@ -28,30 +28,30 @@ from app.extract.localize import localize                      # noqa: E402
 # Hand-identified appearances: (sample, team, row, player). Transcribed from
 # the screenshots, which is the only ground truth a nameplate has.
 APPEARANCES = [
-    ("kingsrowloss.png", "blue", 0, "DEREK"),
-    ("kingsrowloss.png", "blue", 1, "LECHEFFEUR"),
-    ("kingsrowloss.png", "red", 0, "GOLDFISHSNAQ"),
-    ("kingsrowloss.png", "red", 1, "UBUNTU2"),
-    ("kingsrowloss.png", "red", 2, "IRIDESCENTLY"),
-    ("kingsrowloss.png", "red", 3, "SEAGULL"),
-    ("kingsrowloss.png", "red", 5, "SPIRITS"),
-    ("nepalloss.png", "blue", 0, "DEREK"),
-    ("nepalloss.png", "blue", 1, "LECHEFFEUR"),
-    ("nepalloss.png", "blue", 5, "SPIRITS"),
-    ("nepalloss.png", "red", 0, "GOLDFISHSNAQ"),
-    ("nepalloss.png", "red", 1, "UBUNTU2"),
-    ("nepalloss.png", "red", 2, "IRIDESCENTLY"),
-    ("nepalloss.png", "red", 3, "SEAGULL"),
-    ("route66Loss.png", "blue", 1, "LECHEFFEUR"),
-    ("route66Loss.png", "blue", 4, "DEREK"),
-    ("route66Loss.png", "red", 2, "SEAGULL"),
-    ("route66Loss.png", "red", 3, "UBUNTU2"),
-    ("route66Loss.png", "red", 4, "IRIDESCENTLY"),
-    ("blizzard worldLoss.png", "blue", 0, "LECHEFFEUR"),
-    ("blizzard worldLoss.png", "blue", 2, "DEREK"),
-    ("blizzard worldLoss.png", "blue", 5, "SPIRITS"),
-    ("blizzard worldLoss.png", "red", 1, "UBUNTU2"),
-    ("blizzard worldLoss.png", "red", 3, "IRIDESCENTLY"),
+    ("kingsrowloss.png", "blue", 0, "PLAYER_A"),
+    ("kingsrowloss.png", "blue", 1, "PLAYER_B"),
+    ("kingsrowloss.png", "red", 0, "PLAYER_C"),
+    ("kingsrowloss.png", "red", 1, "PLAYER_D"),
+    ("kingsrowloss.png", "red", 2, "PLAYER_E"),
+    ("kingsrowloss.png", "red", 3, "PLAYER_F"),
+    ("kingsrowloss.png", "red", 5, "PLAYER_G"),
+    ("nepalloss.png", "blue", 0, "PLAYER_A"),
+    ("nepalloss.png", "blue", 1, "PLAYER_B"),
+    ("nepalloss.png", "blue", 5, "PLAYER_G"),
+    ("nepalloss.png", "red", 0, "PLAYER_C"),
+    ("nepalloss.png", "red", 1, "PLAYER_D"),
+    ("nepalloss.png", "red", 2, "PLAYER_E"),
+    ("nepalloss.png", "red", 3, "PLAYER_F"),
+    ("route66Loss.png", "blue", 1, "PLAYER_B"),
+    ("route66Loss.png", "blue", 4, "PLAYER_A"),
+    ("route66Loss.png", "red", 2, "PLAYER_F"),
+    ("route66Loss.png", "red", 3, "PLAYER_D"),
+    ("route66Loss.png", "red", 4, "PLAYER_E"),
+    ("blizzard worldLoss.png", "blue", 0, "PLAYER_B"),
+    ("blizzard worldLoss.png", "blue", 2, "PLAYER_A"),
+    ("blizzard worldLoss.png", "blue", 5, "PLAYER_G"),
+    ("blizzard worldLoss.png", "red", 1, "PLAYER_D"),
+    ("blizzard worldLoss.png", "red", 3, "PLAYER_E"),
 ]
 
 MAX_DISTANCE = 35      # the shipped default
@@ -171,7 +171,7 @@ class RecognitionTest(unittest.TestCase):
     def test_an_unknown_player_is_not_recognized_as_someone_else(self):
         """Everyone in a lobby who has never been typed in must come back
         blank, not as the nearest acquaintance."""
-        target = "DEREK"
+        target = "PLAYER_A"
         library = [(1, signature) for who, signature in SIGNATURES if who != target]
         for who, probe in SIGNATURES:
             if who != target:
