@@ -14,6 +14,7 @@
       <a href="#/matches" data-route="matches">Matches</a>
       <a href="#/players" data-route="players">Players</a>
       <a href="#/overall" data-route="overall">Overall</a>
+      <a href="#/trends" data-route="trends">Trends</a>
       <a href="#/explore" data-route="explore">Explore</a>
       <a href="#/settings" data-route="settings">Settings</a>
     </nav>
@@ -257,6 +258,44 @@
   </template>
 
   <!-- ==================== Settings ==================== -->
+  <template id="tpl-trends">
+    <section class="panel">
+      <h1>Trends</h1>
+      <p class="hint" data-role="intro"></p>
+
+      <div class="chart-controls">
+        <label>Window
+          <select data-role="window">
+            <option value="5">last 5</option>
+            <option value="10" selected>last 10</option>
+            <option value="20">last 20</option>
+          </select>
+        </label>
+        <label>Season
+          <select data-role="season"><option value="">all</option></select>
+        </label>
+        <label>Line
+          <select data-role="measure">
+            <option value="rolling" selected>rolling win rate</option>
+            <option value="cumulative">win rate to date</option>
+          </select>
+        </label>
+      </div>
+
+      <figure class="chart" data-role="figure">
+        <div data-role="plot"></div>
+        <figcaption data-role="legend" class="chart-legend"></figcaption>
+      </figure>
+
+      <div data-role="empty" class="hint"></div>
+
+      <details data-role="table-wrap">
+        <summary>See the numbers</summary>
+        <div data-role="table"></div>
+      </details>
+    </section>
+  </template>
+
   <template id="tpl-settings">
     <section class="panel narrow">
       <h1>Settings</h1>

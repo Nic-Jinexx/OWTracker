@@ -15,6 +15,11 @@
   --win: #43b581;
   --loss: #d4544a;
   --draw: #8b9aa7;
+  /* Was #d47ab8. Measured against --enemy at ΔE 15.0 in OKLab, which is below
+     the threshold where two adjacent series are reliably distinguishable even
+     with full colour vision; as chart lines they read as the same red. This
+     one sits at 18.5 and is still unambiguously pink. */
+  --pink: #e26fd0;
   --amber: #6b5320;       /* low-confidence cell background */
   --amber-line: #c99a2e;
   --unknown: #5d2b28;
@@ -532,7 +537,7 @@ details.more .breakdown h2 { display: none; }   /* the panel already has a title
 .dot-damage.on  { background: var(--ally); }
 .dot-support.on { background: var(--win); }
 .dot-red.on     { background: var(--enemy); }
-.dot-pink.on    { background: #d47ab8; }
+.dot-pink.on    { background: var(--pink); }
 .dot-white.on   { background: var(--text); }
 
 .identity-row { display: flex; gap: 22px; align-items: baseline; flex-wrap: wrap; }
@@ -598,3 +603,40 @@ details.more .breakdown h2 { display: none; }   /* the panel already has a title
   display: block; max-width: 94vw; max-height: 94vh;
   object-fit: contain; cursor: zoom-out;
 }
+
+/* ---------- trend chart ---------- */
+
+.chart-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  margin: 14px 0 6px; font-size: 13px; color: var(--muted); }
+.chart-controls select { background: var(--panel-2); border: 1px solid var(--line);
+  color: var(--text); border-radius: var(--radius); padding: 4px 7px;
+  font: inherit; margin-left: 6px; }
+
+.chart { margin: 0; position: relative; }
+.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* Recessive by design: the grid is a reference, not content. */
+.chart-svg .grid { stroke: var(--line); stroke-width: 1; }
+.chart-svg .grid-mid { stroke: var(--muted); stroke-dasharray: 3 4; opacity: 0.55; }
+.chart-svg .axis { fill: var(--muted); font-size: 11px; }
+.chart-svg .series { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.chart-svg .series-label { font-size: 11px; font-weight: 600; }
+.chart-svg .crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.chart-svg .tick-win  { fill: var(--win); }
+.chart-svg .tick-loss { fill: var(--loss); }
+.chart-svg .tick-draw { fill: var(--draw); }
+
+.chart-tip { position: absolute; top: 6px; transform: translateX(-50%);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 6px 9px; font-size: 12px; line-height: 1.5; pointer-events: none;
+  white-space: nowrap; display: none; z-index: 2; }
+
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.legend-item { display: inline-flex; align-items: center; gap: 7px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px;
+  color: var(--text); padding: 4px 11px; font: inherit; font-size: 12px; cursor: pointer; }
+.legend-item .muted { font-size: 11px; }
+/* Hidden series stay in the legend: the control to bring them back has to be
+   where they were, and their absence from the plot is the only other cue. */
+.legend-item.off { opacity: 0.4; }
+.legend-item.off svg { opacity: 0.5; }

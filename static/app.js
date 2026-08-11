@@ -1527,6 +1527,271 @@ async function renderSettings() {
   showSeasons();
 }
 
+/* ------------------------------------------------------------------ trends
+ *
+ * Win rate over time, drawn as inline SVG. No chart library: the app ships
+ * offline with no build step, and a line chart is a path element.
+ *
+ * The dot series are the reason this page exists. A table can already tell you
+ * your win rate with a given player; only a timeline shows whether the games
+ * with your pink-dotted teammates sit above or below the rest of your history.
+ * Dots aggregate by colour, never by person, because the colour is the label
+ * the operator invented and the person is incidental to it.
+ */
+
+const CHART = {
+  width: 900, height: 320,
+  pad: { top: 16, right: 96, bottom: 34, left: 44 },
+};
+
+// Dashes are not decoration. Several dot colours sit close together by
+// definition (red and pink are both red-ish and always will be), so identity
+// never rests on hue alone: every series also has its own stroke pattern, a
+// legend entry, and a direct label at the right-hand end.
+const SERIES_DASH = {
+  overall: '', tank: '6 3', damage: '2 4', support: '10 4',
+  red: '4 3 1 3', pink: '8 3 2 3', white: '1 4',
+};
+
+const TAG_INK = {
+  tank: 'var(--accent)', damage: 'var(--ally)', support: 'var(--win)',
+  red: 'var(--enemy)', pink: 'var(--pink)', white: 'var(--text)',
+};
+
+function trendChart(data, options) {
+  const { measure, hidden } = options;
+  const { width, height, pad } = CHART;
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const n = Math.max(data.points.length, 2);
+
+  const x = (i) => pad.left + ((i - 1) / (n - 1)) * plotW;
+  const y = (v) => pad.top + (1 - v) * plotH;
+
+  const series = [
+    { code: 'overall', label: 'All matches', color: 'var(--text)',
+      points: data.points, width: 2.5 },
+    ...data.series.map((s) => ({
+      code: s.code, label: s.label, color: TAG_INK[s.code] || 'var(--muted)',
+      points: s.points, width: 2, games: s.games, win_rate: s.win_rate,
+    })),
+  ].filter((s) => !hidden.has(s.code));
+
+  const line = (points) => points
+    .map((p, i) => `${i ? 'L' : 'M'}${x(p.x).toFixed(1)} ${y(p[measure]).toFixed(1)}`)
+    .join(' ');
+
+  // Gridlines every 25%, with the 50% line picked out: on a win-rate chart it
+  // is the only value that means anything on its own.
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((v) => `
+    <line class="grid ${v === 0.5 ? 'grid-mid' : ''}"
+          x1="${pad.left}" x2="${pad.left + plotW}" y1="${y(v)}" y2="${y(v)}"></line>
+    <text class="axis" x="${pad.left - 8}" y="${y(v) + 4}" text-anchor="end">${v * 100}%</text>`
+  ).join('');
+
+  // Win/loss ticks along the bottom, so a flat line still shows what happened.
+  const ticks = data.points.map((p) => `
+    <rect class="tick tick-${p.outcome}" x="${x(p.x) - 2}" y="${pad.top + plotH + 6}"
+          width="4" height="6" rx="1"></rect>`).join('');
+
+  const paths = series.map((s) => `
+    <path class="series" d="${line(s.points)}" stroke="${s.color}"
+          stroke-width="${s.width}" stroke-dasharray="${SERIES_DASH[s.code] || ''}"></path>
+    ${s.points.length === 1 ? `<circle cx="${x(s.points[0].x)}"
+          cy="${y(s.points[0][measure])}" r="4" fill="${s.color}"></circle>` : ''}`
+  ).join('');
+
+  // Direct labels at the right end, so the common case needs no legend lookup.
+  //
+  // Series that end at similar win rates put their labels on top of each other,
+  // and on this chart that is the normal case rather than the unlucky one:
+  // every line is a percentage and they cluster around the middle. Six series
+  // ending within ten points of each other stacked six labels 5px apart. So
+  // the labels are spread to a legible minimum gap, keeping their vertical
+  // order, and dropped entirely when there is not enough room for all of them
+  // to be honest about which line they belong to. The legend never goes away,
+  // so nothing is lost when they do.
+  const GAP = 13;
+  const wanted = series
+    .filter((s) => s.points && s.points.length)
+    .map((s) => ({ s, y: y(s.points[s.points.length - 1][measure]) + 4 }))
+    .sort((a, b) => a.y - b.y);
+
+  // All or nothing, at their true heights. Nudging them apart was the obvious
+  // fix and the wrong one: every line on this chart is a percentage, so they
+  // cluster around the middle, and a label moved far enough to be legible ends
+  // up level with a *different* series. A label that points at the wrong line
+  // is worse than no label, so when they do not fit, none are drawn and the
+  // legend carries identity on its own. It is always present.
+  const fits = wanted.length <= 4 && wanted.every(
+    (entry, i) => i === 0 || entry.y - wanted[i - 1].y >= GAP);
+  const labels = !fits ? '' : wanted
+    .map(({ s, y: ly }) => `<text class="series-label" x="${pad.left + plotW + 8}"
+                  y="${ly.toFixed(1)}" fill="${s.color}">${esc(s.label)}</text>`)
+    .join('');
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" class="chart-svg" role="img"
+         aria-label="Win rate over ${data.points.length} matches">
+      ${grid}${ticks}${paths}${labels}
+      <line class="crosshair" data-role="crosshair" y1="${pad.top}"
+            y2="${pad.top + plotH}" style="display:none"></line>
+      <rect data-role="hit" x="${pad.left}" y="${pad.top}" width="${plotW}"
+            height="${plotH}" fill="transparent"></rect>
+    </svg>`;
+}
+
+async function renderTrends() {
+  const node = template('trends');
+  const plot = node.querySelector('[data-role="plot"]');
+  const legendBox = node.querySelector('[data-role="legend"]');
+  const tableBox = node.querySelector('[data-role="table"]');
+  const emptyBox = node.querySelector('[data-role="empty"]');
+  const tableWrap = node.querySelector('[data-role="table-wrap"]');
+  const figure = node.querySelector('[data-role="figure"]');
+  const windowSelect = node.querySelector('[data-role="window"]');
+  const seasonSelect = node.querySelector('[data-role="season"]');
+  const measureSelect = node.querySelector('[data-role="measure"]');
+
+  const hidden = new Set();
+  let data = null;
+
+  for (const season of await api.get('/api/seasons')) {
+    const option = document.createElement('option');
+    option.value = season.id === null ? 'none' : season.id;
+    option.textContent = `${season.name} (${season.matches})`;
+    seasonSelect.appendChild(option);
+  }
+
+  function paint() {
+    const measure = measureSelect.value;
+    if (!data || !data.points.length) {
+      figure.style.display = 'none';
+      tableWrap.style.display = 'none';
+      emptyBox.textContent = 'No matches yet. Add one and the trend appears here.';
+      return;
+    }
+    figure.style.display = '';
+    tableWrap.style.display = '';
+    emptyBox.textContent = data.tags_in_use ? '' :
+      'No endorsement dots are in play yet. Put a dot on a player from their '
+      + 'page and their games appear here as their own line.';
+
+    plot.innerHTML = trendChart(data, { measure, hidden });
+
+    const entries = [{ code: 'overall', label: 'All matches', color: 'var(--text)',
+                       games: data.games, win_rate: data.points.length
+                         ? data.points[data.points.length - 1].cumulative : null }]
+      .concat(data.series.map((s) => ({
+        code: s.code, label: s.label, color: TAG_INK[s.code] || 'var(--muted)',
+        games: s.games, win_rate: s.win_rate })));
+
+    legendBox.innerHTML = entries.map((e) => `
+      <button type="button" class="legend-item ${hidden.has(e.code) ? 'off' : ''}"
+              data-series="${e.code}">
+        <svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4"
+          stroke="${e.color}" stroke-width="2"
+          stroke-dasharray="${SERIES_DASH[e.code] || ''}"></line></svg>
+        ${esc(e.label)}
+        <span class="muted">${e.win_rate === null ? '' :
+          `${Math.round(e.win_rate * 100)}% of ${e.games}`}</span>
+      </button>`).join('');
+
+    for (const button of legendBox.querySelectorAll('[data-series]')) {
+      button.addEventListener('click', () => {
+        const code = button.dataset.series;
+        hidden.has(code) ? hidden.delete(code) : hidden.add(code);
+        paint();
+      });
+    }
+
+    tableBox.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Played</th><th>Result</th>
+          <th class="num">Rolling</th><th class="num">To date</th></tr></thead>
+        <tbody>${data.points.map((p) => `
+          <tr><td>${p.n}</td>
+            <td>${p.played_at ? new Date(p.played_at).toLocaleDateString() : ''}</td>
+            <td><span class="pill ${p.outcome}">${p.outcome}</span></td>
+            <td class="num">${Math.round(p.rolling * 100)}%</td>
+            <td class="num">${Math.round(p.cumulative * 100)}%</td></tr>`).join('')}
+        </tbody>
+      </table>`;
+
+    wireCrosshair(plot, data, measure, hidden);
+  }
+
+  async function load() {
+    const params = new URLSearchParams({ window: windowSelect.value });
+    if (seasonSelect.value) params.set('season_id', seasonSelect.value);
+    data = await api.get('/api/stats/trend?' + params);
+    node.querySelector('[data-role="intro"]').textContent =
+      `${data.games} matches, win rate over a rolling window of ${data.window}.`;
+    paint();
+  }
+
+  for (const control of [windowSelect, seasonSelect]) {
+    control.addEventListener('change', load);
+  }
+  measureSelect.addEventListener('change', paint);
+
+  view().innerHTML = '';
+  view().appendChild(node);
+  await load();
+}
+
+/* A line chart with no hover is a picture. The crosshair snaps to the nearest
+ * match rather than the nearest pixel, so the readout always describes a real
+ * game. */
+function wireCrosshair(plot, data, measure, hidden) {
+  const svg = plot.querySelector('svg');
+  const hit = svg.querySelector('[data-role="hit"]');
+  const crosshair = svg.querySelector('[data-role="crosshair"]');
+  const { width, pad } = CHART;
+  const plotW = width - pad.left - pad.right;
+  const n = Math.max(data.points.length, 2);
+
+  let tip = plot.querySelector('.chart-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'chart-tip';
+    plot.appendChild(tip);
+  }
+
+  function hide() {
+    crosshair.style.display = 'none';
+    tip.style.display = 'none';
+  }
+
+  hit.addEventListener('mouseleave', hide);
+  hit.addEventListener('mousemove', (event) => {
+    const box = svg.getBoundingClientRect();
+    const scale = width / box.width;
+    const svgX = (event.clientX - box.left) * scale;
+    const index = Math.round(((svgX - pad.left) / plotW) * (n - 1)) + 1;
+    const point = data.points[Math.max(0, Math.min(index, data.points.length) - 1)];
+    if (!point) return hide();
+
+    const cx = pad.left + ((point.x - 1) / (n - 1)) * plotW;
+    crosshair.setAttribute('x1', cx);
+    crosshair.setAttribute('x2', cx);
+    crosshair.style.display = '';
+
+    const lines = [`<b>Match ${point.n}</b> · ${point.outcome}`];
+    if (!hidden.has('overall')) {
+      lines.push(`All matches <b>${Math.round(point[measure] * 100)}%</b>`);
+    }
+    for (const s of data.series) {
+      if (hidden.has(s.code)) continue;
+      const at = s.points.find((p) => p.x === point.x);
+      if (at) lines.push(`${esc(s.label)} <b>${Math.round(at[measure] * 100)}%</b>`);
+    }
+    tip.innerHTML = lines.join('<br>');
+    tip.style.display = 'block';
+    tip.style.left = `${Math.min((cx / width) * 100, 78)}%`;
+  });
+}
+
 /* Editing is not a second entry screen. The match is unpacked back into a
  * draft and handed to the grid that already exists, so there is one place that
  * knows how a match is shaped and one code path that writes one. */
@@ -1547,6 +1812,7 @@ const ROUTES = [
   [/^#\/new\/(\d+)$/, (m) => renderEntry(m[1])],
   [/^#\/new$/, () => renderEntry(null)],
   [/^#\/matches$/, () => renderMatches()],
+  [/^#\/trends$/, () => renderTrends()],
   [/^#\/match\/(\d+)\/edit$/, (m) => reopenMatchForEditing(m[1])],
   [/^#\/match\/(\d+)$/, (m) => renderMatch(m[1])],
   [/^#\/players$/, () => renderPlayers()],

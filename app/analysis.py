@@ -634,3 +634,118 @@ def highlights(conn, subject: Subject, filters: Filters, top: int = 5,
         "min_games": min_games,
         "rank": rank,
     }
+
+
+# ---------------------------------------------------------------- trend
+
+
+def trend(conn, subject: Subject, filters: Filters, window: int = 10) -> dict:
+    """Win rate over time: one point per match, in the order they were played.
+
+    Three numbers per point, because they answer different questions and the
+    obvious one is the least useful:
+
+    - `cumulative` is the win rate over everything up to here. It is the honest
+      "how am I doing overall", and it goes flat by design once there are
+      enough games for one result to stop moving it.
+    - `rolling` is the win rate over the last `window` matches. This is the
+      trend line worth looking at, because it can actually move.
+    - `outcome` is the single match, so the chart can mark wins and losses.
+
+    Tagged series are the point of this. For every dot the operator has handed
+    out, the same rolling number is computed over the subset of matches where
+    somebody wearing that dot was on the subject's team. Plotted against the
+    same x axis it answers "do my games go better when this person plays",
+    which is what the dots are for and what no table shows.
+
+    The dots are aggregated by colour, never by person: a `pink` series is
+    every pink-dotted player at once. That keeps the question about the label
+    the operator invented rather than about one teammate.
+    """
+    # Missing or zero means "unset", which falls back to the default rather
+    # than to the minimum: a 0 arriving from a query string is nonsense, and
+    # answering it with a 2-match window would look like a deliberate setting.
+    # A real number is clamped, because a window of 1 is just the result column
+    # and a window larger than the history is the cumulative line.
+    window = max(2, min(int(window or 10), 100))
+    cte, params = subject_matches(subject, filters)
+
+    matches = list(conn.execute(cte + """
+        SELECT match_id, played_at, outcome FROM sm
+        ORDER BY played_at, match_id
+    """, params))
+
+    # Which dots were present in each match, on the subject's own team. Own
+    # team only: a dot on an opponent is a different question, and averaging
+    # the two would answer neither.
+    tagged: dict[int, set[str]] = {}
+    for row in conn.execute(cte + """
+        SELECT DISTINCT sm.match_id AS match_id, pt.tag_code AS tag_code
+        FROM sm
+        JOIN match_players mate ON mate.match_id = sm.match_id
+                               AND mate.team = sm.team
+                               AND mate.id != sm.subject_row_id
+        JOIN player_tags pt ON pt.player_id = mate.player_id
+    """, params):
+        tagged.setdefault(row["match_id"], set()).add(row["tag_code"])
+
+    def series_from(indexed: list[tuple[int, str]]) -> list[dict]:
+        """Rolling and cumulative win rate over an ordered list of outcomes.
+
+        `indexed` carries the x position of each match so a tagged series
+        stays aligned to the overall timeline instead of being renumbered
+        1..n and drifting away from the games it describes.
+        """
+        points, wins, seen = [], 0, []
+        for position, (x, outcome) in enumerate(indexed, start=1):
+            if outcome == "win":
+                wins += 1
+            seen.append(outcome)
+            recent = seen[-window:]
+            recent_wins = sum(1 for o in recent if o == "win")
+            points.append({
+                "x": x,
+                "n": position,
+                "outcome": outcome,
+                "cumulative": wins / position,
+                "rolling": recent_wins / len(recent),
+                "window": len(recent),
+            })
+        return points
+
+    overall_points = series_from([(i, m["outcome"]) for i, m in enumerate(matches, start=1)])
+    for point, match in zip(overall_points, matches):
+        point["match_id"] = match["match_id"]
+        point["played_at"] = match["played_at"]
+
+    tag_rows = list(conn.execute(
+        "SELECT code, tag_set, color, label, sort_order FROM tags ORDER BY sort_order"))
+    series = []
+    for tag in tag_rows:
+        member = [(i, m["outcome"]) for i, m in enumerate(matches, start=1)
+                  if tag["code"] in tagged.get(m["match_id"], ())]
+        if not member:
+            continue
+        points = series_from(member)
+        wins = sum(1 for _, o in member if o == "win")
+        series.append({
+            "code": tag["code"],
+            "label": tag["label"],
+            "color": tag["color"],
+            "tag_set": tag["tag_set"],
+            "games": len(member),
+            "wins": wins,
+            "win_rate": wins / len(member),
+            "points": points,
+        })
+
+    return {
+        "window": window,
+        "points": overall_points,
+        "series": series,
+        "games": len(matches),
+        # So the page can say "no dots handed out yet" rather than drawing an
+        # empty chart and leaving the operator to work out why.
+        "tags_defined": len(tag_rows),
+        "tags_in_use": len(series),
+    }

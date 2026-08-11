@@ -1,48 +1,202 @@
 [
-  { "name": "D.Va",          "role": "tank" },
-  { "name": "Doomfist",      "role": "tank" },
-  { "name": "Hazard",        "role": "tank" },
-  { "name": "Junker Queen",  "role": "tank" },
-  { "name": "Mauga",         "role": "tank" },
-  { "name": "Orisa",         "role": "tank" },
-  { "name": "Ramattra",      "role": "tank" },
-  { "name": "Reinhardt",     "role": "tank" },
-  { "name": "Roadhog",       "role": "tank" },
-  { "name": "Sigma",         "role": "tank" },
-  { "name": "Winston",       "role": "tank" },
-  { "name": "Wrecking Ball", "role": "tank" },
-  { "name": "Zarya",         "role": "tank" },
-
-  { "name": "Ashe",          "role": "damage" },
-  { "name": "Bastion",       "role": "damage" },
-  { "name": "Cassidy",       "role": "damage" },
-  { "name": "Echo",          "role": "damage" },
-  { "name": "Freja",         "role": "damage" },
-  { "name": "Genji",         "role": "damage" },
-  { "name": "Hanzo",         "role": "damage" },
-  { "name": "Junkrat",       "role": "damage" },
-  { "name": "Mei",           "role": "damage" },
-  { "name": "Pharah",        "role": "damage" },
-  { "name": "Reaper",        "role": "damage" },
-  { "name": "Sojourn",       "role": "damage" },
-  { "name": "Soldier: 76",   "role": "damage" },
-  { "name": "Sombra",        "role": "damage" },
-  { "name": "Symmetra",      "role": "damage" },
-  { "name": "Torbjorn",      "role": "damage" },
-  { "name": "Tracer",        "role": "damage" },
-  { "name": "Venture",       "role": "damage" },
-  { "name": "Widowmaker",    "role": "damage" },
-
-  { "name": "Ana",           "role": "support" },
-  { "name": "Baptiste",      "role": "support" },
-  { "name": "Brigitte",      "role": "support" },
-  { "name": "Illari",        "role": "support" },
-  { "name": "Juno",          "role": "support" },
-  { "name": "Kiriko",        "role": "support" },
-  { "name": "Lifeweaver",    "role": "support" },
-  { "name": "Lucio",         "role": "support" },
-  { "name": "Mercy",         "role": "support" },
-  { "name": "Moira",         "role": "support" },
-  { "name": "Wuyang",        "role": "support" },
-  { "name": "Zenyatta",      "role": "support" }
+  {
+    "name": "Anran",
+    "role": "damage"
+  },
+  {
+    "name": "Ashe",
+    "role": "damage"
+  },
+  {
+    "name": "Bastion",
+    "role": "damage"
+  },
+  {
+    "name": "Cassidy",
+    "role": "damage"
+  },
+  {
+    "name": "Echo",
+    "role": "damage"
+  },
+  {
+    "name": "Emre",
+    "role": "damage"
+  },
+  {
+    "name": "Freja",
+    "role": "damage"
+  },
+  {
+    "name": "Genji",
+    "role": "damage"
+  },
+  {
+    "name": "Hanzo",
+    "role": "damage"
+  },
+  {
+    "name": "Junkrat",
+    "role": "damage"
+  },
+  {
+    "name": "Mei",
+    "role": "damage"
+  },
+  {
+    "name": "Pharah",
+    "role": "damage"
+  },
+  {
+    "name": "Reaper",
+    "role": "damage"
+  },
+  {
+    "name": "Shion",
+    "role": "damage"
+  },
+  {
+    "name": "Sierra",
+    "role": "damage"
+  },
+  {
+    "name": "Sojourn",
+    "role": "damage"
+  },
+  {
+    "name": "Soldier: 76",
+    "role": "damage"
+  },
+  {
+    "name": "Sombra",
+    "role": "damage"
+  },
+  {
+    "name": "Symmetra",
+    "role": "damage"
+  },
+  {
+    "name": "Torbjorn",
+    "role": "damage"
+  },
+  {
+    "name": "Tracer",
+    "role": "damage"
+  },
+  {
+    "name": "Vendetta",
+    "role": "damage"
+  },
+  {
+    "name": "Venture",
+    "role": "damage"
+  },
+  {
+    "name": "Widowmaker",
+    "role": "damage"
+  },
+  {
+    "name": "Ana",
+    "role": "support"
+  },
+  {
+    "name": "Baptiste",
+    "role": "support"
+  },
+  {
+    "name": "Brigitte",
+    "role": "support"
+  },
+  {
+    "name": "Illari",
+    "role": "support"
+  },
+  {
+    "name": "Juno",
+    "role": "support"
+  },
+  {
+    "name": "Kiriko",
+    "role": "support"
+  },
+  {
+    "name": "Lifeweaver",
+    "role": "support"
+  },
+  {
+    "name": "Lucio",
+    "role": "support"
+  },
+  {
+    "name": "Mercy",
+    "role": "support"
+  },
+  {
+    "name": "Moira",
+    "role": "support"
+  },
+  {
+    "name": "Wuyang",
+    "role": "support"
+  },
+  {
+    "name": "Zenyatta",
+    "role": "support"
+  },
+  {
+    "name": "D.Va",
+    "role": "tank"
+  },
+  {
+    "name": "Domina",
+    "role": "tank"
+  },
+  {
+    "name": "Doomfist",
+    "role": "tank"
+  },
+  {
+    "name": "Hazard",
+    "role": "tank"
+  },
+  {
+    "name": "Junker Queen",
+    "role": "tank"
+  },
+  {
+    "name": "Mauga",
+    "role": "tank"
+  },
+  {
+    "name": "Orisa",
+    "role": "tank"
+  },
+  {
+    "name": "Ramattra",
+    "role": "tank"
+  },
+  {
+    "name": "Reinhardt",
+    "role": "tank"
+  },
+  {
+    "name": "Roadhog",
+    "role": "tank"
+  },
+  {
+    "name": "Sigma",
+    "role": "tank"
+  },
+  {
+    "name": "Winston",
+    "role": "tank"
+  },
+  {
+    "name": "Wrecking Ball",
+    "role": "tank"
+  },
+  {
+    "name": "Zarya",
+    "role": "tank"
+  }
 ]

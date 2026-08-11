@@ -245,3 +245,30 @@ def allies(player_id: int | None = None, min_games: int = 1,
                 "allies": analysis.by_ally(conn, subject, Filters(), min_games, limit),
                 "opponents": analysis.by_opponent(conn, subject, Filters(),
                                                   min_games, limit)}
+
+
+@router.get("/trend")
+def trend(
+    player_id: int | None = None,
+    mode: str | None = None,
+    map_id: int | None = None,
+    team_size: int | None = None,
+    season_id: int | str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    window: int = 10,
+) -> dict:
+    """Win rate over time, plus one series per endorsement dot.
+
+    Deliberately not filterable by hero or role: those are properties of a
+    single row, and a trend line drawn only over the games where the subject
+    played Ana is a different chart with the same shape and a much smaller
+    sample. Map, mode, format and season all narrow the *match set*, which is
+    what a timeline is about.
+    """
+    filters = _filters(None, map_id, mode, None, None, None,
+                       None, None, date_from, date_to, team_size, season_id)
+    with get_conn() as conn:
+        subject, who = _subject(conn, player_id)
+        return {"subject": who,
+                **analysis.trend(conn, subject, filters, window=window)}

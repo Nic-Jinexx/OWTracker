@@ -56,7 +56,7 @@ __all__ = ["NameSuggestion", "available", "clean", "distance", "read_text",
 # "GOLDFIS"), and moving the left edge inward to escape the badge that precedes
 # the name started clipping real first letters instead. So the badge is left in
 # and dealt with after the read.
-TEXT_BOUNDS = (188.0, 24.0, 620.0, 108.0)
+TEXT_BOUNDS = (188.0, 24.0, 680.0, 108.0)
 
 # How far the read text may sit from a known name and still be called that
 # player. Two edits covers the observed damage: a hallucinated leading
@@ -72,6 +72,11 @@ MIN_SNAP_LENGTH = 4
 # Suggestions are capped below any plausible review threshold so they always
 # surface for confirmation, however sure the engine claims to be.
 MAX_SUGGESTION_CONFIDENCE = 0.5
+
+# A detection box shorter than this fraction of the tallest one is furniture,
+# not the name. Measured on the corpus: badge boxes 49-54%, name boxes 93-98%,
+# so anywhere in that gap works and 0.70 sits in the middle of it.
+MIN_BOX_HEIGHT_RATIO = 0.70
 
 
 @dataclass(frozen=True)
@@ -102,12 +107,25 @@ def _engine():
     return RapidOCR()
 
 
+def _box_height(box) -> float:
+    ys = [point[1] for point in box]
+    return max(ys) - min(ys)
+
+
 def read_text(crop_bgr: np.ndarray) -> tuple[str, float]:
     """Raw text and confidence from one nameplate crop.
 
     Boxes are joined left to right rather than taking the most confident one:
     the reader sometimes splits a name in two, and taking the best box alone
     would return half of it with high confidence.
+
+    Short boxes are dropped first. The nameplate carries a small badge to the
+    left of the name, and the reader turns it into a stray "O" or "11" with
+    total confidence — that is where the numbers appearing in names came from.
+    It is always a *separate* detection box and always a much shorter one:
+    measured across the corpus, badge boxes run 49-54% of the crop height while
+    the name runs 93-98%. Filtering on relative height removes them without
+    guessing at the text, which is the part that must not be tampered with.
     """
     if crop_bgr is None or crop_bgr.size == 0 or not available():
         return "", 0.0
@@ -117,7 +135,14 @@ def read_text(crop_bgr: np.ndarray) -> tuple[str, float]:
         return "", 0.0
     if not result:
         return "", 0.0
-    ordered = sorted(result, key=lambda box: box[0][0][0])
+
+    tallest = max(_box_height(box[0]) for box in result)
+    kept = [box for box in result
+            if _box_height(box[0]) >= tallest * MIN_BOX_HEIGHT_RATIO]
+    if not kept:                                  # pragma: no cover - defensive
+        kept = result
+
+    ordered = sorted(kept, key=lambda box: box[0][0][0])
     text = "".join(str(box[1]) for box in ordered)
     confidence = min(float(box[2]) for box in ordered)
     return text, confidence
