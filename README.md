@@ -30,14 +30,14 @@ confirm, never saved as certain.
 Win or loss is not printed on the scoreboard, so you pick that yourself.
 
 You can edit or delete any match afterwards, and group matches into your own
-named seasons.
+named seasons. The Trends page charts your win rate over time.
 
 ## Limits
 
 - Hero names come from a small, unverified library and may be wrong.
-- A read player name is right about half the time on its own. If it matches
+- A read player name is right about nine times in ten on its own. If it matches
   someone already in your database it is corrected automatically; otherwise
-  treat it as a starting point and fix it.
+  treat it as a starting point and check it.
 - Only one hero per player per match. The scoreboard is a single snapshot.
 - In-game (Tab) screenshots are not supported yet. Endgame reports only.
 - Windows only in practice.
