@@ -32,6 +32,11 @@ DEFAULTS: dict[str, tuple[object, type]] = {
     # signatures were in the library. A stranger, which is most of every lobby,
     # would have been matched to the nearest acquaintance at 49 bits.
     "nameplate_hash_max_distance": (35, int),
+    # Read unrecognized nameplates as text and suggest a name. Only applies to
+    # rows the hash could not place; the hash is exact and always wins. Costs
+    # roughly a second per unrecognized row, and does nothing at all unless the
+    # OCR engine is installed. 1 to enable, 0 to turn off.
+    "read_unknown_names": (1, int),
 }
 
 

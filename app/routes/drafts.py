@@ -192,6 +192,7 @@ async def attach_files(
             nameplate_library=nameplates.load_library(conn),
             nameplate_max_distance=settings_module.get(conn, "nameplate_hash_max_distance"),
             hero_max_distance=settings_module.get(conn, "hero_hash_max_distance"),
+            read_names=bool(settings_module.get(conn, "read_unknown_names")),
         )
         hero_ids = {row["name"]: row["id"]
                     for row in conn.execute("SELECT id, name FROM heroes")}

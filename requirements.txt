@@ -7,3 +7,20 @@ numpy==2.2.1
 Pillow==11.1.0
 opencv-python-headless==4.11.0.86
 python-multipart==0.0.20
+
+# Nameplate reading (app/extract/ocr.py). Optional at runtime: if these are
+# absent the app skips reading names and behaves exactly as it did before, so
+# a source install can leave them out.
+#
+# Everything rapidocr-onnxruntime needs is listed here explicitly, and the
+# package itself is installed with --no-deps by tools/package.py. It declares
+# `opencv-python`, the full desktop build with GUI bindings, which is 42 MB and
+# would sit alongside the headless build already installed above. Both provide
+# the same `cv2`, so letting pip resolve it would double OpenCV in the shipped
+# folder to satisfy a name, not a need.
+onnxruntime==1.28.0
+pyclipper==1.4.0
+shapely==2.1.2
+PyYAML==6.0.3
+six==1.17.0
+tqdm==4.70.0

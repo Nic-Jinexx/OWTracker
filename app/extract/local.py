@@ -22,7 +22,7 @@ import numpy as np
 
 from .. import paths
 from ..draft import STAT_FIELDS, empty_draft, field
-from . import cells, nameplates
+from . import cells, nameplates, ocr
 from .base import ExtractionResult
 from .glyphs import load_atlas
 from .heroes import load_hero_library, identify_portrait
@@ -46,11 +46,18 @@ class LocalExtractor:
     def __init__(self, team_size: int = 6, *,
                  nameplate_library: list[tuple[int, str]] | None = None,
                  nameplate_max_distance: int = 64,
-                 hero_max_distance: int = 8):
+                 hero_max_distance: int = 8,
+                 read_names: bool | None = None):
         self.team_size = team_size
         self.nameplate_library = nameplate_library or []
         self.nameplate_max_distance = nameplate_max_distance
         self.hero_max_distance = hero_max_distance
+        # None means "use it if it is installed"; False turns it off even where
+        # it is. Either way it is ANDed with availability, so asking for name
+        # reading on a machine without the engine is a no-op rather than a
+        # per-row round trip through a function that can only return nothing.
+        wanted = ocr.available() if read_names is None else bool(read_names)
+        self.read_names = wanted and ocr.available()
 
     # -- library availability -------------------------------------------
 
@@ -127,7 +134,7 @@ class LocalExtractor:
         diagnostics["stage"] = "read"
         rows, unread = [], []
         crops: list[dict] = []
-        recognized = portraits_read = 0
+        recognized = portraits_read = suggested = 0
 
         for block in layout.teams:
             team = TEAM_FROM_BLOCK[block.team]
@@ -170,6 +177,24 @@ class LocalExtractor:
                         recognized += 1
                         row["player_id"] = hit.player_id
                         row["nameplate_confidence"] = hit.confidence
+                    elif self.read_names:
+                        # Only for rows the hash could not place. The hash is
+                        # exact and proven; reading is a fallback for people it
+                        # has never seen, and running it on a row already
+                        # identified could only ever disagree with a better
+                        # answer. Suggestions are low confidence by
+                        # construction, so the grid asks for confirmation.
+                        plate_text = cells.region_image(image, layout, block,
+                                                        index, ocr.TEXT_BOUNDS)
+                        proposed = ocr.suggest(plate_text, self.nameplate_library)
+                        if proposed is not None:
+                            suggested += 1
+                            row["player_name"] = field(
+                                proposed.name, source="template", origin=kind,
+                                confidence=proposed.confidence)
+                            if proposed.player_id is not None:
+                                row["nameplate_suggested_player_id"] = proposed.player_id
+                            row["name_read_by"] = proposed.origin
 
                 rows.append(row)
 
@@ -188,6 +213,8 @@ class LocalExtractor:
         diagnostics["unread"] = unread[:20]
         diagnostics["heroes_identified"] = portraits_read
         diagnostics["players_recognized"] = recognized
+        diagnostics["names_suggested"] = suggested
+        diagnostics["name_reading"] = self.read_names
 
         if unread:
             warnings.append(

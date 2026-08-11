@@ -1,0 +1,8 @@
+# Installed with --no-deps. See the note in requirements.txt: this package
+# declares the full `opencv-python` build, and the app already ships
+# `opencv-python-headless`, which provides the same `cv2` module. Every other
+# dependency it needs is pinned in requirements.txt instead.
+#
+# The wheel carries the ONNX detection and recognition models inside it, which
+# is most of its 14 MB. Nothing is downloaded at runtime.
+rapidocr-onnxruntime==1.4.4
