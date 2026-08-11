@@ -1,8 +1,8 @@
 @echo off
 REM OWTracker - development launcher.
-REM Uses the system Python and a local venv. The SHIPPED launcher is different:
-REM tools\package.py generates one that uses the bundled interpreter and never
-REM installs anything. See CLAUDE-OWTRACKER.md, milestone 8.
+REM Uses the system Python and a local venv, and creates both on first run.
+REM The launcher inside the downloadable release is a different file: it uses
+REM the interpreter bundled beside it and never installs anything.
 
 setlocal
 cd /d "%~dp0"
