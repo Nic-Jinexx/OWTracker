@@ -39,7 +39,13 @@ META_FIELDS = (
 # Which screenshot wins a disagreement. The endgame report is authoritative for
 # statistics; the in-game scoreboard is a mid-match snapshot and is stale by
 # construction.
+# Origin marking a value the name reader guessed rather than a screenshot
+# asserted. Ranked below every real source, and exempted from conflicts
+# entirely in `merge_field`.
+SUGGESTION_ORIGIN = "name_suggestion"
+
 ORIGIN_RANK = {
+    SUGGESTION_ORIGIN: 0,
     "in_game_scoreboard": 1,
     "endgame_report": 2,
     "manual": 3,
@@ -123,6 +129,16 @@ def merge_field(existing: dict, incoming: dict, path: str,
         return incoming, None
 
     if existing.get("value") == incoming.get("value"):
+        return existing, None
+
+    # A suggestion is not an assertion. The name reader offers a guess for a
+    # nameplate nobody has identified; it is not a second source claiming to
+    # know better, so it defers to anything already there and never raises a
+    # conflict. Without this, opening a draft with your own display name
+    # pre-filled and then attaching a screenshot produced a conflict on your
+    # own row every single time, because the reader had read the nameplate and
+    # disagreed with the setting.
+    if incoming.get("origin") == SUGGESTION_ORIGIN:
         return existing, None
 
     if existing.get("source") == "manual":

@@ -305,14 +305,27 @@ def _store_crops(draft_id: int, result, sha256: str) -> None:
 
 
 def _stamp_origin(fragment: dict, kind: str) -> None:
-    for envelope in fragment.get("meta", {}).values():
-        if envelope.get("source") == "template":
+    """Label extracted values with the screenshot they came from, so the merge
+    rules can rank an endgame report over an in-game one.
+
+    A value the extractor already labelled keeps its own label. Only the name
+    reader does that, and overwriting its `name_suggestion` origin with the
+    screenshot kind promoted a guess to a full source: it then outranked
+    nothing, conflicted with the operator's own pre-filled name, and produced
+    "1 field conflict needs a decision" on every single upload.
+    """
+    def stamp(envelope: dict) -> None:
+        if envelope.get("source") == "template" and not envelope.get("origin"):
             envelope["origin"] = kind
+
+    for envelope in fragment.get("meta", {}).values():
+        if isinstance(envelope, dict):
+            stamp(envelope)
     for row in fragment.get("rows", []):
         for name in draft_module.ROW_FIELDS:
             envelope = row.get(name)
-            if isinstance(envelope, dict) and envelope.get("source") == "template":
-                envelope["origin"] = kind
+            if isinstance(envelope, dict):
+                stamp(envelope)
 
 
 @router.patch("/{draft_id}/files/{sha256}")

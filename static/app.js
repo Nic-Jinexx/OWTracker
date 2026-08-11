@@ -723,7 +723,7 @@ async function renderMatch(id) {
           <tr>
             <td>${p.is_me ? '<b>' : ''}${p.display_name
                  ? `<a class="back" href="#/player/${p.player_id}">${esc(p.display_name)}</a>`
-                 : '<span class="muted">unidentified</span>'}${p.is_me ? '</b>' : ''}</td>
+                 : '<span class="muted">no name logged</span>'}${p.is_me ? '</b>' : ''}</td>
             <td class="muted">${p.role || p.hero_role || ''}</td>
             <td>${p.hero_name ? esc(p.hero_name) : '<span class="muted">—</span>'}</td>
             ${STAT_COLUMNS.map(([f]) =>
@@ -846,12 +846,12 @@ function averagesTable(averages) {
   if (!averages) return '';
   return `
     <h2>Averages <span class="muted">(${averages.rows_with_stats} scored game${averages.rows_with_stats === 1 ? '' : 's'})</span></h2>
-    <table class="data-table">
+    <div class="table-scroll"><table class="data-table">
       <thead><tr>${AVERAGE_LABELS.map(([, l]) => `<th class="num">${l}</th>`).join('')}</tr></thead>
       <tbody><tr>${AVERAGE_LABELS.map(([k]) =>
         `<td class="num">${averages[k] === null ? '—' : Math.round(averages[k]).toLocaleString()}</td>`).join('')}
       </tr></tbody>
-    </table>`;
+    </table></div>`;
 }
 
 // -------------------------------------------------------------------- bars
@@ -1643,6 +1643,12 @@ function trendChart(data, options) {
 
 async function renderTrends() {
   const node = template('trends');
+  // Every element this view touches later must be grabbed now. `node` is a
+  // DocumentFragment and appending it empties it, so a querySelector after the
+  // append returns null — which is exactly how the page came up blank with
+  // "Cannot set properties of null". The rest of the app hits the same trap and
+  // handles it the same way; see renderMatch.
+  const intro = node.querySelector('[data-role="intro"]');
   const plot = node.querySelector('[data-role="plot"]');
   const legendBox = node.querySelector('[data-role="legend"]');
   const tableBox = node.querySelector('[data-role="table"]');
@@ -1725,7 +1731,7 @@ async function renderTrends() {
     const params = new URLSearchParams({ window: windowSelect.value });
     if (seasonSelect.value) params.set('season_id', seasonSelect.value);
     data = await api.get('/api/stats/trend?' + params);
-    node.querySelector('[data-role="intro"]').textContent =
+    intro.textContent =
       `${data.games} matches, win rate over a rolling window of ${data.window}.`;
     paint();
   }

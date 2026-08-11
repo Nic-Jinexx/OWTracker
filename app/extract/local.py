@@ -21,7 +21,7 @@ import cv2
 import numpy as np
 
 from .. import paths
-from ..draft import STAT_FIELDS, empty_draft, field
+from ..draft import SUGGESTION_ORIGIN, STAT_FIELDS, empty_draft, field
 from . import cells, nameplates, ocr
 from .base import ExtractionResult
 from .glyphs import load_atlas
@@ -190,7 +190,8 @@ class LocalExtractor:
                         if proposed is not None:
                             suggested += 1
                             row["player_name"] = field(
-                                proposed.name, source="template", origin=kind,
+                                proposed.name, source="template",
+                                origin=SUGGESTION_ORIGIN,
                                 confidence=proposed.confidence)
                             if proposed.player_id is not None:
                                 row["nameplate_suggested_player_id"] = proposed.player_id
