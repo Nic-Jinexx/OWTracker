@@ -630,12 +630,27 @@ async function renderEntry(draftId) {
     }
     try {
       const result = await api.post(`/api/drafts/${draft.id}/commit`);
-      toast(`Saved as match #${result.match_id}`);
-      location.hash = '#/matches';
+      const editing = payload.editing_match_id;
+      toast(editing ? `Match #${result.match_id} updated.`
+                    : `Saved as match #${result.match_id}`);
+      location.hash = editing ? `#/match/${result.match_id}` : '#/matches';
     } catch (error) {
       toast(error.message);
     }
   });
+
+  // Editing an existing match rather than entering a new one. Say so loudly:
+  // the grid is identical either way, and saving overwrites a real match.
+  if (payload.editing_match_id) {
+    const save = root.querySelector('[data-role="save"]');
+    if (save) save.textContent = 'Save changes';
+    root.insertAdjacentHTML('afterbegin', `
+      <div class="editing-banner">
+        Editing <a href="#/match/${payload.editing_match_id}">match #${
+          payload.editing_match_id}</a>. Saving replaces it. Leaving this page
+        changes nothing, and the screenshots stay attached either way.
+      </div>`);
+  }
 
   view().innerHTML = '';
   view().appendChild(node);
@@ -744,6 +759,18 @@ async function renderMatch(id) {
     node.querySelector('[data-role="sources"]').insertAdjacentHTML(
       'beforebegin', `<h2>Notes</h2><div class="note">${esc(m.notes)}</div>`);
   }
+
+  node.querySelector('[data-role="edit"]').href = `#/match/${id}/edit`;
+
+  node.querySelector('[data-role="delete"]').addEventListener('click', async () => {
+    const what = `${m.result} on ${m.map_name || 'an unknown map'}`;
+    if (!confirm(`Delete this match (${what})? The screenshots stay on disk.`)) return;
+    try {
+      await api.del('/api/matches/' + id);
+      toast('Match deleted.');
+      location.hash = '#/matches';
+    } catch (error) { toast(error.message); }
+  });
 
   view().innerHTML = '';
   view().appendChild(node);
@@ -1400,6 +1427,60 @@ async function renderSettings() {
     } catch (error) { toast(error.message); }
   });
 
+  // --- seasons ----------------------------------------------------------
+  const seasonList = node.querySelector('[data-role="seasons"]');
+  async function showSeasons() {
+    const seasons = await api.get('/api/seasons');
+    const real = seasons.filter((s) => s.id !== null);
+    const unassigned = seasons.find((s) => s.id === null);
+    seasonList.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Season</th><th>From</th><th>To</th>
+          <th class="num">Matches</th><th></th></tr></thead>
+        <tbody>
+          ${real.map((s) => `
+            <tr>
+              <td>${esc(s.name)}</td>
+              <td>${s.starts_on}</td>
+              <td>${s.ongoing ? '<span class="muted">ongoing</span>' : s.ends_on}</td>
+              <td class="num">${s.matches}</td>
+              <td><button type="button" class="chip danger" data-season="${s.id}"
+                          data-name="${esc(s.name)}">Delete</button></td>
+            </tr>`).join('')
+          || '<tr><td colspan="5" class="muted">No seasons yet.</td></tr>'}
+          ${unassigned ? `<tr><td colspan="3" class="muted">Not in any season</td>
+            <td class="num">${unassigned.matches}</td><td></td></tr>` : ''}
+        </tbody>
+      </table>`;
+    for (const button of seasonList.querySelectorAll('button[data-season]')) {
+      button.addEventListener('click', async () => {
+        if (!confirm(`Delete the season "${button.dataset.name}"? `
+                     + 'Its matches are kept and become unassigned.')) return;
+        try {
+          const result = await api.del('/api/seasons/' + button.dataset.season);
+          toast(`Season deleted. ${result.matches_released} matches unassigned.`);
+          showSeasons();
+        } catch (error) { toast(error.message); }
+      });
+    }
+  }
+
+  node.querySelector('[data-role="season-add"]').addEventListener('click', async () => {
+    const body = {
+      name: node.querySelector('[data-role="season-name"]').value.trim(),
+      starts_on: node.querySelector('[data-role="season-start"]').value,
+      ends_on: node.querySelector('[data-role="season-end"]').value,
+    };
+    try {
+      const created = await api.post('/api/seasons', body);
+      node.querySelector('[data-role="season-name"]').value = '';
+      toast(created.matches_reassigned
+        ? `Added ${created.name}. ${created.matches_reassigned} matches refiled.`
+        : `Added ${created.name}.`);
+      showSeasons();
+    } catch (error) { toast(error.message); }
+  });
+
   const backupList = node.querySelector('[data-role="backups"]');
   async function showBackups() {
     const backups = await api.get('/api/export/backups');
@@ -1417,9 +1498,47 @@ async function renderSettings() {
     } catch (error) { toast(error.message); }
   });
 
+  // Clearing everything asks for the phrase to be typed rather than using a
+  // confirm() dialog. A dialog is dismissed by reflex; typing is not.
+  const confirmBox = node.querySelector('[data-role="clear-confirm"]');
+  const clearResult = node.querySelector('[data-role="clear-result"]');
+  node.querySelector('[data-role="clear-data"]').addEventListener('click', async () => {
+    try {
+      const result = await api.post('/api/export/clear', { confirm: confirmBox.value.trim() });
+      confirmBox.value = '';
+      const rows = Object.entries(result.cleared)
+        .map(([table, n]) => `${n} ${table.replace(/_/g, ' ')}`).join(', ');
+      clearResult.innerHTML = result.total_rows
+        ? `Deleted ${rows}. Backed up first to <code>${esc(result.backup.path)}</code>. ` +
+          `${result.screenshots_left_on_disk} screenshot files are still in ` +
+          `<code>${esc(result.screenshots_path)}</code>; delete them by hand if you want them gone.`
+        : 'There was nothing to delete.';
+      toast(result.total_rows ? `Cleared ${result.total_rows} rows.` : 'Already empty.');
+      showBackups();
+    } catch (error) {
+      clearResult.textContent = '';
+      toast(error.message);
+    }
+  });
+
   view().innerHTML = '';
   view().appendChild(node);
   showBackups();
+  showSeasons();
+}
+
+/* Editing is not a second entry screen. The match is unpacked back into a
+ * draft and handed to the grid that already exists, so there is one place that
+ * knows how a match is shaped and one code path that writes one. */
+async function reopenMatchForEditing(matchId) {
+  try {
+    const { draft_id: draftId, reused } = await api.post(`/api/matches/${matchId}/reopen`);
+    if (reused) toast('Reopened the edit already in progress for this match.');
+    location.hash = '#/new/' + draftId;
+  } catch (error) {
+    toast(error.message);
+    location.hash = '#/match/' + matchId;
+  }
 }
 
 // ------------------------------------------------------------------ router
@@ -1428,6 +1547,7 @@ const ROUTES = [
   [/^#\/new\/(\d+)$/, (m) => renderEntry(m[1])],
   [/^#\/new$/, () => renderEntry(null)],
   [/^#\/matches$/, () => renderMatches()],
+  [/^#\/match\/(\d+)\/edit$/, (m) => reopenMatchForEditing(m[1])],
   [/^#\/match\/(\d+)$/, (m) => renderMatch(m[1])],
   [/^#\/players$/, () => renderPlayers()],
   [/^#\/player\/(\d+)$/, (m) => renderPlayer(m[1])],

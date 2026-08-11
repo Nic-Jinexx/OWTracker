@@ -24,11 +24,13 @@ router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 
 def _filters(hero_id, map_id, mode, role, teammate_id, opponent_id,
-             rank_min, rank_max, date_from, date_to, team_size=None) -> Filters:
+             rank_min, rank_max, date_from, date_to, team_size=None,
+             season_id=None) -> Filters:
     return Filters(hero_id=hero_id, map_id=map_id, mode=mode, role=role,
                    teammate_id=teammate_id, opponent_id=opponent_id,
                    rank_min=rank_min, rank_max=rank_max,
-                   date_from=date_from, date_to=date_to, team_size=team_size)
+                   date_from=date_from, date_to=date_to, team_size=team_size,
+                   season_id=season_id)
 
 
 def _subject(conn, player_id: int | None) -> tuple[Subject, dict]:
@@ -72,10 +74,11 @@ def aggregates(
     date_from: str | None = None,
     date_to: str | None = None,
     team_size: int | None = None,
+    season_id: int | str | None = None,
 ) -> dict:
     """The operator's aggregates. Response shape unchanged since v0.1.0."""
     filters = _filters(hero_id, map_id, mode, role, teammate_id, opponent_id,
-                       rank_min, rank_max, date_from, date_to, team_size)
+                       rank_min, rank_max, date_from, date_to, team_size, season_id)
     subject = Subject()
     with get_conn() as conn:
         return {
@@ -108,6 +111,7 @@ def overview(
     date_from: str | None = None,
     date_to: str | None = None,
     team_size: int | None = None,
+    season_id: int | str | None = None,
     top: int = 5,
     min_games: int = analysis.RELIABLE_MIN_GAMES,
     rank: str = "score",
@@ -119,7 +123,7 @@ def overview(
     param would be complexity bought for a problem that does not exist.
     """
     filters = _filters(hero_id, map_id, mode, role, teammate_id, opponent_id,
-                       rank_min, rank_max, date_from, date_to, team_size)
+                       rank_min, rank_max, date_from, date_to, team_size, season_id)
     with get_conn() as conn:
         subject, who = _subject(conn, player_id)
         allies = analysis.by_ally(conn, subject, filters)
@@ -167,12 +171,13 @@ def top_performances(
     date_from: str | None = None,
     date_to: str | None = None,
     team_size: int | None = None,
+    season_id: int | str | None = None,
     top: int = 5,
     min_games: int = analysis.RELIABLE_MIN_GAMES,
     rank: str = "score",
 ) -> dict:
     filters = _filters(hero_id, map_id, mode, role, teammate_id, opponent_id,
-                       rank_min, rank_max, date_from, date_to, team_size)
+                       rank_min, rank_max, date_from, date_to, team_size, season_id)
     with get_conn() as conn:
         subject, who = _subject(conn, player_id)
         return {"subject": who,
@@ -186,6 +191,7 @@ def comps(
     map_id: int | None = None,
     mode: str | None = None,
     team_size: int | None = None,
+    season_id: int | str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     min_games: int = 1,
@@ -199,7 +205,7 @@ def comps(
     mostly one game each and are labelled as such rather than ranked.
     """
     filters = _filters(None, map_id, mode, None, None, None,
-                       None, None, date_from, date_to, team_size)
+                       None, None, date_from, date_to, team_size, season_id)
     with get_conn() as conn:
         subject, who = _subject(conn, player_id)
         result = {"subject": who, **analysis.comp_shapes(conn, subject, filters)}
@@ -215,6 +221,7 @@ def crosstab(
     player_id: int | None = None,
     mode: str | None = None,
     team_size: int | None = None,
+    season_id: int | str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     min_games: int = 1,
@@ -222,7 +229,7 @@ def crosstab(
     """Hero x map. Kept out of the overview because it is the biggest payload
     and belongs behind a deliberate click."""
     filters = _filters(None, None, mode, None, None, None,
-                       None, None, date_from, date_to, team_size)
+                       None, None, date_from, date_to, team_size, season_id)
     with get_conn() as conn:
         subject, who = _subject(conn, player_id)
         return {"subject": who,

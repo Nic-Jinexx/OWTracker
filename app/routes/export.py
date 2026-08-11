@@ -112,6 +112,67 @@ def backup_database() -> dict:
     }
 
 
+# Everything the operator has entered or ingested, in an order that satisfies
+# the foreign keys without relying on cascades. Reference data (heroes, maps,
+# ranks, tags) and settings are deliberately absent: they are not "your data",
+# and wiping them would leave an app that cannot record the next match.
+USER_TABLES = (
+    "field_provenance", "match_bans", "match_sources", "match_players",
+    "player_nameplates", "player_tags", "drafts", "matches", "players",
+)
+
+CLEAR_CONFIRMATION = "DELETE EVERYTHING"
+
+
+@router.post("/clear")
+def clear_data(body: dict | None = None) -> dict:
+    """Empty every table holding operator data, after backing up.
+
+    Two things make this survivable. It takes a backup first, unconditionally,
+    so the button is never the last copy of anything. And it requires the
+    caller to spell out the confirmation phrase, so no stray POST can trigger
+    it — the UI asks the operator to type it.
+
+    Archived screenshots are left on disk. Invariant 5 says they are never
+    auto-deleted, and a wipe of the database is not a reason to break that; the
+    response says where they are so they can be removed by hand.
+    """
+    if (body or {}).get("confirm") != CLEAR_CONFIRMATION:
+        raise HTTPException(
+            400, f"To clear all data, confirm with the exact phrase '{CLEAR_CONFIRMATION}'.")
+
+    backup = backup_database()
+
+    with get_conn() as conn:
+        before = {t: conn.execute(f"SELECT COUNT(*) AS n FROM {t}").fetchone()["n"]
+                  for t in USER_TABLES}
+        try:
+            conn.execute("BEGIN")
+            for table in USER_TABLES:
+                conn.execute(f"DELETE FROM {table}")
+            # Reset the id counters so a cleared database starts at 1 again
+            # rather than continuing from the old numbering. The table only
+            # exists once SQLite has assigned an AUTOINCREMENT id.
+            has_sequence = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'"
+            ).fetchone()
+            if has_sequence:
+                conn.execute("DELETE FROM sqlite_sequence")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    screenshots = sorted(paths.SCREENSHOTS_DIR.rglob("*")) if paths.SCREENSHOTS_DIR.exists() else []
+    return {
+        "cleared": {t: n for t, n in before.items() if n},
+        "total_rows": sum(before.values()),
+        "backup": backup,
+        "screenshots_left_on_disk": len([p for p in screenshots if p.is_file()]),
+        "screenshots_path": paths.portable(paths.SCREENSHOTS_DIR),
+    }
+
+
 @router.get("/backups")
 def list_backups() -> list[dict]:
     paths.ensure_data_dirs()

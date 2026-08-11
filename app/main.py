@@ -22,6 +22,7 @@ from .routes import (
     matches,
     players,
     reference,
+    seasons,
     settings_routes,
     stats,
 )
@@ -49,6 +50,7 @@ app.include_router(settings_routes.router)
 app.include_router(drafts.router)
 app.include_router(matches.router)
 app.include_router(players.router)
+app.include_router(seasons.router)
 app.include_router(stats.router)
 app.include_router(export.router)
 app.include_router(debug.router)

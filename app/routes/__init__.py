@@ -4,6 +4,7 @@ from . import (  # noqa: F401
     matches,
     players,
     reference,
+    seasons,
     settings_routes,
     stats,
 )

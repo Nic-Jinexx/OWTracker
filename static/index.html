@@ -148,6 +148,10 @@
       <div data-role="teams"></div>
       <div data-role="bans"></div>
       <div data-role="sources"></div>
+      <div class="data-actions" style="margin-top:24px">
+        <a class="chip" data-role="edit">Edit this match</a>
+        <button type="button" class="chip danger" data-role="delete">Delete this match</button>
+      </div>
     </section>
   </template>
 
@@ -263,6 +267,20 @@
       <form data-role="form" class="settings-form"></form>
       <button type="button" class="primary" data-role="save">Save settings</button>
 
+      <h2 style="margin-top:28px">Seasons</h2>
+      <p class="hint">
+        Your own groupings, not Blizzard's. Give a season a name and a start
+        date; leave the end date empty while it is still running. Matches are
+        filed by when they were played, so changing a date regroups them.
+      </p>
+      <div class="season-new">
+        <input type="text" data-role="season-name" placeholder="Name" autocomplete="off">
+        <input type="date" data-role="season-start" title="First day">
+        <input type="date" data-role="season-end" title="Last day, or empty if ongoing">
+        <button type="button" class="chip" data-role="season-add">Add season</button>
+      </div>
+      <div data-role="seasons"></div>
+
       <h2 style="margin-top:28px">Your data</h2>
       <p class="hint">
         Nothing here leaves this machine. Export writes a file to your
@@ -276,6 +294,19 @@
         <button type="button" class="chip" data-role="backup">Back up database</button>
       </div>
       <div data-role="backups" class="hint"></div>
+
+      <h2 style="margin-top:28px">Clear all data</h2>
+      <p class="hint">
+        Deletes every match, player and draft. Your settings, and the hero, map
+        and rank lists, are kept. A backup is taken first, automatically, so
+        this is never the last copy. Archived screenshots stay on disk.
+      </p>
+      <div class="data-actions">
+        <input type="text" data-role="clear-confirm" placeholder="Type DELETE EVERYTHING"
+               autocomplete="off" spellcheck="false">
+        <button type="button" class="chip danger" data-role="clear-data">Clear all data</button>
+      </div>
+      <div data-role="clear-result" class="hint"></div>
     </section>
   </template>
 

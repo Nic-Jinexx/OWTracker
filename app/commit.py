@@ -47,6 +47,27 @@ def _get_or_create_player(conn: sqlite3.Connection, display_name: str, now: str)
     return int(cursor.lastrowid)
 
 
+def _assign_season(conn: sqlite3.Connection, match_id: int) -> None:
+    """File one match into whichever season's range contains its date.
+
+    No match is a normal outcome: before any season exists, and for a match
+    played outside every range, `season_id` stays NULL and the app reports it
+    as unassigned rather than guessing at the nearest one.
+    """
+    conn.execute(
+        """
+        UPDATE matches SET season_id = (
+            SELECT s.id FROM seasons s
+            WHERE matches.played_at IS NOT NULL
+              AND date(matches.played_at) >= s.starts_on
+              AND (s.ends_on IS NULL OR date(matches.played_at) <= s.ends_on)
+        )
+        WHERE id = ?
+        """,
+        (match_id,),
+    )
+
+
 def _record_provenance(conn: sqlite3.Connection, table: str, row_id: int,
                        column: str, envelope: dict, superseded: dict[str, str]) -> None:
     """Provenance is written for extracted fields (invariant 3).
@@ -104,24 +125,86 @@ def commit_draft(conn: sqlite3.Connection, draft_id: int) -> int:
             enemy = sum(1 for r in rows if r["team"] == "enemy")
             team_size = max(ally, enemy) or None
 
-        cursor = conn.execute(
-            "INSERT INTO matches (played_at, map_id, mode, result, team_size, "
-            "duration_seconds, rank_range_low, rank_range_high, notes, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                meta["played_at"]["value"] or now,
-                meta["map_id"]["value"],
-                meta["mode"]["value"],
-                meta["result"]["value"],
-                team_size,
-                meta["duration_seconds"]["value"],
-                meta["rank_range_low"]["value"],
-                meta["rank_range_high"]["value"],
-                meta["notes"]["value"],
-                now,
-            ),
+        columns = (
+            meta["played_at"]["value"] or now,
+            meta["map_id"]["value"],
+            meta["mode"]["value"],
+            meta["result"]["value"],
+            team_size,
+            meta["duration_seconds"]["value"],
+            meta["rank_range_low"]["value"],
+            meta["rank_range_high"]["value"],
+            meta["notes"]["value"],
         )
-        match_id = int(cursor.lastrowid)
+
+        editing = payload.get("editing_match_id")
+        if editing is not None:
+            # An edit. Update the row in place and clear what hangs off it,
+            # rather than delete-and-reinsert: the match id is referenced by
+            # match_sources, so a new id would orphan the screenshots and break
+            # every link to this match that already exists.
+            if conn.execute("SELECT 1 FROM matches WHERE id = ?", (editing,)).fetchone() is None:
+                raise CommitError(
+                    [f"Match {editing} no longer exists, so this edit has nothing to save to. "
+                     f"It was probably deleted in another tab."])
+            match_id = int(editing)
+            conn.execute(
+                "UPDATE matches SET played_at = ?, map_id = ?, mode = ?, result = ?, "
+                "team_size = ?, duration_seconds = ?, rank_range_low = ?, "
+                "rank_range_high = ?, notes = ? WHERE id = ?",
+                (*columns, match_id),
+            )
+            # Rebuilt below from the draft. Provenance goes too: it describes
+            # where the *old* values came from and would otherwise be read as
+            # describing the new ones.
+            #
+            # Order matters. The player provenance is found *through*
+            # match_players, so it has to go before the rows it is looked up
+            # by; deleting them first would leave every one of those
+            # provenance rows behind, attached to ids that no longer exist.
+            # The two tables are cleared by separate statements because
+            # `row_id` means a different thing in each, and one combined
+            # `row_id IN (...)` would cross-delete between them.
+            conn.execute(
+                "DELETE FROM field_provenance WHERE table_name = 'match_players' "
+                "AND row_id IN (SELECT id FROM match_players WHERE match_id = ?)",
+                (match_id,),
+            )
+            conn.execute(
+                "DELETE FROM field_provenance WHERE table_name = 'matches' AND row_id = ?",
+                (match_id,),
+            )
+            # `games_seen` is a stored counter that `_get_or_create_player`
+            # bumps for every row it writes. Rewriting the roster below would
+            # bump it a second time for everyone in this match, so give back
+            # what this match already contributed first. Counted per row, not
+            # per player, to stay symmetric with how it was added.
+            conn.execute(
+                """
+                UPDATE players SET games_seen = MAX(0, games_seen - (
+                    SELECT COUNT(*) FROM match_players mp
+                    WHERE mp.match_id = ? AND mp.player_id = players.id))
+                WHERE id IN (SELECT player_id FROM match_players
+                             WHERE match_id = ? AND player_id IS NOT NULL)
+                """,
+                (match_id, match_id),
+            )
+            conn.execute("DELETE FROM match_players WHERE match_id = ?", (match_id,))
+            conn.execute("DELETE FROM match_bans WHERE match_id = ?", (match_id,))
+        else:
+            cursor = conn.execute(
+                "INSERT INTO matches (played_at, map_id, mode, result, team_size, "
+                "duration_seconds, rank_range_low, rank_range_high, notes, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (*columns, now),
+            )
+            match_id = int(cursor.lastrowid)
+
+        # Season is derived from the date, never entered. Doing it here means a
+        # match is filed the moment it exists, and the same statement that runs
+        # when a season's dates change is the one that runs now — so there is
+        # only ever one rule deciding what belongs where.
+        _assign_season(conn, match_id)
 
         for column in draft_module.META_FIELDS:
             _record_provenance(conn, "matches", match_id, column, meta[column],

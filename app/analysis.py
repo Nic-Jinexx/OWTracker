@@ -75,6 +75,10 @@ class Filters:
     date_from: str | None = None
     date_to: str | None = None
     team_size: int | None = None
+    # A season id, or the string "none" for matches in no season. Unassigned is
+    # a real bucket the operator can look at, not the absence of a filter, so
+    # it needs a value that survives "is this filter set?".
+    season_id: int | str | None = None
 
     def applied(self) -> dict:
         return {k: v for k, v in asdict(self).items() if v is not None}
@@ -105,6 +109,12 @@ def _where(subject: Subject, filters: Filters) -> tuple[str, list]:
     if filters.team_size is not None:
         clauses.append("m.team_size = ?")
         params.append(filters.team_size)
+    if filters.season_id is not None:
+        if str(filters.season_id) == "none":
+            clauses.append("m.season_id IS NULL")
+        else:
+            clauses.append("m.season_id = ?")
+            params.append(int(filters.season_id))
     if filters.date_from:
         clauses.append("m.played_at >= ?")
         params.append(filters.date_from)
