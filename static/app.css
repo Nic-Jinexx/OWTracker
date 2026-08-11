@@ -1,0 +1,578 @@
+/* OWTracker — dark UI roughly matching the game's palette.
+   Ally rows lean blue, enemy rows lean red, mirroring the scoreboard so the
+   review grid reads like the screenshot it came from. */
+
+:root {
+  --bg: #0f1418;
+  --panel: #161d23;
+  --panel-2: #1d262e;
+  --line: #2a353f;
+  --text: #e6edf3;
+  --muted: #8b9aa7;
+  --accent: #f79e1b;      /* OW orange */
+  --ally: #4a8fd4;
+  --enemy: #d4544a;
+  --win: #43b581;
+  --loss: #d4544a;
+  --draw: #8b9aa7;
+  --amber: #6b5320;       /* low-confidence cell background */
+  --amber-line: #c99a2e;
+  --unknown: #5d2b28;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+}
+
+/* ---------- chrome ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  height: 52px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand { font-weight: 700; letter-spacing: .5px; }
+.brand span { color: var(--accent); }
+
+.topbar nav { display: flex; gap: 4px; flex: 1; }
+
+.topbar nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+}
+
+.topbar nav a:hover { background: var(--panel-2); color: var(--text); }
+.topbar nav a.active { background: var(--panel-2); color: var(--accent); }
+
+.topbar-status { color: var(--muted); font-size: 12px; }
+
+main { padding: 20px; max-width: 1500px; margin: 0 auto; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.panel.narrow { max-width: 620px; }
+
+h1 { font-size: 20px; margin: 0 0 14px; }
+h2 { font-size: 14px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+
+.hint { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+
+.hint.keys b {
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-weight: 600;
+  font-size: 11px;
+}
+.back { color: var(--muted); text-decoration: none; font-size: 13px; }
+.back:hover { color: var(--text); }
+
+/* ---------- form controls ---------- */
+
+input, select, textarea, button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 8px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--muted); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #17130a;
+  font-weight: 600;
+  padding: 9px 22px;
+}
+
+.meta-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.required { color: var(--accent); text-transform: none; letter-spacing: 0; }
+
+.meta-block { margin-bottom: 16px; }
+.meta-inline { display: flex; gap: 18px; flex-wrap: wrap; }
+.rank-range { display: flex; align-items: center; gap: 6px; }
+.rank-range span { color: var(--muted); font-size: 12px; }
+
+/* ---------- result buttons ---------- */
+
+.result-buttons { display: flex; gap: 8px; }
+
+.result-buttons button {
+  flex: 0 0 110px;
+  padding: 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.result-buttons button[data-value="win"].selected  { background: var(--win);  border-color: var(--win);  color: #06251a; }
+.result-buttons button[data-value="loss"].selected { background: var(--loss); border-color: var(--loss); color: #2a0b09; }
+.result-buttons button[data-value="draw"].selected { background: var(--draw); border-color: var(--draw); color: #14191d; }
+
+/* ---------- map + ban pickers ---------- */
+
+.map-grid { display: flex; flex-direction: column; gap: 8px; }
+
+.mode-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+.mode-row .mode-name {
+  width: 88px;
+  flex: 0 0 88px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chip {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 12px;
+}
+
+.chip.selected { background: var(--accent); border-color: var(--accent); color: #17130a; font-weight: 600; }
+
+.ban-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.ban-grid .chip.selected { background: var(--enemy); border-color: var(--enemy); color: #fff; }
+
+/* ---------- roster grid ---------- */
+
+/* Extra bottom padding so the last hint line clears the sticky save bar. */
+.rosters { display: flex; flex-direction: column; gap: 18px; padding-bottom: 6px; }
+
+.roster-row {
+  display: grid;
+  grid-template-columns: 34px 92px 150px 1fr repeat(6, 78px);
+  gap: 6px;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.roster-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+  padding-bottom: 2px;
+}
+
+.roster-head .num, .roster-row .num { text-align: right; }
+.roster-row input, .roster-row select { width: 100%; }
+.roster-row input.num { text-align: right; }
+
+.team-block.ally .roster-row  { border-left: 3px solid var(--ally);  padding-left: 8px; }
+.team-block.enemy .roster-row { border-left: 3px solid var(--enemy); padding-left: 8px; }
+.team-block .roster-head { padding-left: 11px; }
+
+.me-toggle {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.me-toggle.on { background: var(--accent); border-color: var(--accent); color: #17130a; }
+
+/* Confidence signalling — invariant 3. */
+.low-confidence { background: var(--amber); border-color: var(--amber-line); }
+.unknown-hero   { background: var(--unknown); border-color: var(--enemy); }
+
+.nameplate-crop {
+  max-height: 26px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* ---------- save bar ---------- */
+
+.savebar {
+  position: sticky;
+  bottom: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.problems { flex: 1; color: var(--accent); font-size: 13px; }
+.problems ul { margin: 0; padding-left: 18px; }
+
+/* ---------- tables ---------- */
+
+.data-table { width: 100%; border-collapse: collapse; }
+
+.data-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  padding: 6px 8px;
+}
+
+.data-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.data-table th.num, .data-table td.num { text-align: right; }
+.data-table tbody tr:hover { background: var(--panel-2); }
+
+.list-summary { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+
+.pill {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pill.win  { background: var(--win);  color: #06251a; }
+.pill.loss { background: var(--loss); color: #2a0b09; }
+.pill.draw { background: var(--draw); color: #14191d; }
+
+.detail-meta { display: flex; gap: 22px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+.detail-meta b { color: var(--text); font-weight: 600; }
+
+.settings-form { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.settings-form label { display: block; }
+
+.muted { color: var(--muted); }
+
+/* ---------- drop zone ---------- */
+
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 26px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+
+.dropzone:hover { border-color: var(--muted); }
+.dropzone.dragging { border-color: var(--accent); background: var(--panel-2); }
+.dropzone.busy { opacity: .6; pointer-events: none; }
+.dropzone-inner strong { display: block; margin-bottom: 4px; }
+.dropzone .hint { margin: 0; }
+
+.attached { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+
+.attached figure {
+  margin: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  width: 210px;
+}
+
+.attached img {
+  width: 100%;
+  height: 105px;
+  object-fit: cover;
+  border-radius: 3px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.attached figcaption { font-size: 11px; color: var(--muted); word-break: break-all; }
+.attached select { width: 100%; margin-top: 5px; font-size: 12px; }
+
+.extractor-note { margin-top: 10px; }
+
+.warnings {
+  margin-top: 10px;
+  border-left: 3px solid var(--amber-line);
+  background: var(--panel-2);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.warnings ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* ---------- rates, filters, breakdowns ---------- */
+
+.rate-cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 20px; }
+
+.rate-card {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  min-width: 150px;
+}
+
+.rate-card .rate-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+}
+
+.rate-card .rate-value { font-size: 26px; font-weight: 700; margin-top: 2px; }
+.rate-card .rate-sub { font-size: 12px; color: var(--muted); }
+
+/* A rate computed from fewer than five games is greyed and always shown with
+   its sample size — never a bare percentage on a tiny sample. */
+.rate-card.thin .rate-value,
+.thin-rate { color: var(--muted); font-weight: 400; }
+.rate-card.thin { border-style: dashed; }
+
+.filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.filters label { display: block; }
+.filters select, .filters input { min-width: 120px; }
+
+.breakdowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; }
+.breakdown h2 { margin-top: 14px; }
+
+.data-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.data-actions a.chip { text-decoration: none; }
+
+/* ---------- toast ---------- */
+
+.toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  z-index: 50;
+}
+
+/* ---------- bars ----------
+   The only graphic in the app: a --panel-2 track with one coloured fill. No
+   SVG, no canvas, no gradients, no animation — a div at a percentage width,
+   which costs nothing and needs no asset the offline build cannot ship. */
+
+.bars { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px minmax(70px, auto);
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.bar-track {
+  height: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.bar-fill { display: block; height: 100%; background: var(--accent); }
+.bar-fill.win  { background: var(--win); }
+.bar-fill.loss { background: var(--loss); }
+
+/* Under five games the bar keeps its length but loses its colour: the shape
+   still says "how much", the flat grey refuses to say "how good". */
+.bar-fill.thin { background: var(--line); }
+.bar-row.thin .bar-name, .bar-row.thin .bar-value { color: var(--muted); }
+
+.bar-value { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-value .rate-sub { font-size: 11px; }
+
+/* Segmented: track length is the sample size, the split is how it went. */
+.bar-track.split { display: flex; }
+.bar-track.split i { display: block; height: 100%; }
+.bar-track.split i.w { background: var(--win); }
+.bar-track.split i.l { background: var(--loss); }
+.bar-track.split i.d { background: var(--draw); }
+
+/* ---------- overall page ---------- */
+
+.overall {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas: "head rail" "body rail";
+  gap: 16px;
+  align-items: start;
+}
+
+.overall-head { grid-area: head; margin-bottom: 0; }
+.overall-body { grid-area: body; }
+
+.overall-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 72px;                 /* topbar 52 + main padding 20 */
+}
+.overall-rail .panel { margin-bottom: 0; }
+
+@media (max-width: 1100px) {
+  .overall { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "rail" "body"; }
+  .overall-rail { position: static; }
+}
+
+.overall-head-row { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.overall-head-row h1 { margin: 0; flex: 1; }
+.player-picker select { min-width: 240px; }
+
+.overall-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.overall-grid .panel { margin-bottom: 0; }
+
+.coverage { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+
+/* "See more" is a native <details> — no JS, and no state to lose on re-render. */
+details.more { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.more > summary {
+  cursor: pointer; color: var(--muted); font-size: 12px; list-style: none;
+}
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "\25B8  "; }
+details.more[open] > summary::before { content: "\25BE  "; }
+details.more > summary:hover { color: var(--text); }
+details.more .breakdown h2 { display: none; }   /* the panel already has a title */
+
+/* ---------- endorsement dots ---------- */
+
+.dots { display: inline-flex; gap: 12px; align-items: center; vertical-align: middle; }
+.dot-set { display: inline-flex; gap: 4px; }
+
+.dot {
+  width: 13px; height: 13px; padding: 0; min-width: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--line);
+}
+.dot:hover:not(:disabled) { border-color: var(--muted); }
+.dot.on { border-color: transparent; }
+.dot:disabled { cursor: default; opacity: 1; }
+
+.dot-tank.on    { background: var(--accent); }
+.dot-damage.on  { background: var(--ally); }
+.dot-support.on { background: var(--win); }
+.dot-red.on     { background: var(--enemy); }
+.dot-pink.on    { background: #d47ab8; }
+.dot-white.on   { background: var(--text); }
+
+.identity-row { display: flex; gap: 22px; align-items: baseline; flex-wrap: wrap; }
+
+/* ---------- notes ----------
+   Invisible until one exists. The empty container collapses, so a player with
+   no note shows nothing but a five-character link. */
+
+.note-host:empty { display: none; }
+
+.note {
+  border-left: 3px solid var(--accent);
+  background: var(--panel-2);
+  padding: 8px 12px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 0 0 14px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  cursor: text;
+  max-width: 720px;
+}
+
+.note-edit { width: 100%; max-width: 720px; margin-bottom: 14px; font: inherit; }
+.note-add { display: inline-block; margin-bottom: 14px; text-decoration: none; }
+.note-add::before { content: "+ "; }
+
+.note-mark {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--accent); border: 1px solid var(--line);
+  border-radius: 3px; padding: 0 4px; margin-left: 6px; cursor: help;
+}
+
+/* ---------- match screenshots ---------- */
+
+.shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+
+.shots figure {
+  margin: 0; width: 280px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+
+.shots img {
+  width: 100%; height: 150px;
+  /* Anchored to the top: a scoreboard cropped from the middle shows a band of
+     numbers with no header, which is unrecognisable as a thumbnail. */
+  object-fit: cover; object-position: top;
+  border-radius: 3px; display: block; cursor: zoom-in;
+}
+
+.shots figcaption { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+.lightbox {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0; max-width: 94vw; max-height: 94vh;
+}
+.lightbox::backdrop { background: rgba(0, 0, 0, .74); }
+.lightbox img {
+  display: block; max-width: 94vw; max-height: 94vh;
+  object-fit: contain; cursor: zoom-out;
+}

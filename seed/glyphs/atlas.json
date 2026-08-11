@@ -1,0 +1,142 @@
+{
+  "_doc": "Digit atlas for the endgame scoreboard font, in canonical units (the board normalized to 1920 wide). Built by tools/build_glyph_atlas.py from samples/*.expected.json. Rebuild only if a game patch changes the scoreboard font.",
+  "built_from": [
+    "kingsrowloss.png"
+  ],
+  "cells_used": 72,
+  "cells_skipped": 0,
+  "characters": {
+    ",": {
+      "instances": 24,
+      "size": [
+        6,
+        10
+      ],
+      "width_range": [
+        5,
+        6
+      ],
+      "mean_abs_deviation": 0.0839
+    },
+    "0": {
+      "instances": 21,
+      "size": [
+        21,
+        28
+      ],
+      "width_range": [
+        21,
+        23
+      ],
+      "mean_abs_deviation": 0.0636
+    },
+    "1": {
+      "instances": 36,
+      "size": [
+        10,
+        27
+      ],
+      "width_range": [
+        9,
+        10
+      ],
+      "mean_abs_deviation": 0.0596
+    },
+    "2": {
+      "instances": 30,
+      "size": [
+        20,
+        28
+      ],
+      "width_range": [
+        20,
+        21
+      ],
+      "mean_abs_deviation": 0.0609
+    },
+    "3": {
+      "instances": 21,
+      "size": [
+        19,
+        28
+      ],
+      "width_range": [
+        18,
+        19
+      ],
+      "mean_abs_deviation": 0.0578
+    },
+    "4": {
+      "instances": 14,
+      "size": [
+        22,
+        27
+      ],
+      "width_range": [
+        21,
+        22
+      ],
+      "mean_abs_deviation": 0.0416
+    },
+    "5": {
+      "instances": 16,
+      "size": [
+        18,
+        28
+      ],
+      "width_range": [
+        18,
+        19
+      ],
+      "mean_abs_deviation": 0.0578
+    },
+    "6": {
+      "instances": 11,
+      "size": [
+        21,
+        27
+      ],
+      "width_range": [
+        20,
+        22
+      ],
+      "mean_abs_deviation": 0.0529
+    },
+    "7": {
+      "instances": 20,
+      "size": [
+        20,
+        27
+      ],
+      "width_range": [
+        20,
+        22
+      ],
+      "mean_abs_deviation": 0.0414
+    },
+    "8": {
+      "instances": 11,
+      "size": [
+        18,
+        28
+      ],
+      "width_range": [
+        18,
+        19
+      ],
+      "mean_abs_deviation": 0.0604
+    },
+    "9": {
+      "instances": 14,
+      "size": [
+        21,
+        28
+      ],
+      "width_range": [
+        20,
+        21
+      ],
+      "mean_abs_deviation": 0.0442
+    }
+  }
+}

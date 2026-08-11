@@ -1,0 +1,23 @@
+# Operator data — never committed. Contains the personal match database and
+# every archived screenshot.
+data/
+
+# The sample corpus is withheld from the published repository. Every one of
+# these screenshots shows other people's gamertags, and they did not agree to
+# being published. Keep them locally — the suite asserts against them here and
+# skips where they are absent — but they do not go up. See samples/README.md.
+samples/*.png
+samples/*.expected.json
+
+# Build output
+dist/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Session handoff (working file, not versioned)
+RESUME.md

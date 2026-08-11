@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OWTracker</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">OW<span>Tracker</span></div>
+    <nav>
+      <a href="#/new" data-route="new">New match</a>
+      <a href="#/matches" data-route="matches">Matches</a>
+      <a href="#/players" data-route="players">Players</a>
+      <a href="#/overall" data-route="overall">Overall</a>
+      <a href="#/explore" data-route="explore">Explore</a>
+      <a href="#/settings" data-route="settings">Settings</a>
+    </nav>
+    <div class="topbar-status" id="status"></div>
+  </header>
+
+  <main id="view"></main>
+
+  <div id="toast" class="toast" hidden></div>
+  <dialog id="lightbox" class="lightbox"><img alt="screenshot"></dialog>
+
+  <!-- ==================== New / review match ==================== -->
+  <template id="tpl-entry">
+    <section class="entry">
+      <div class="panel dropzone-panel">
+        <div class="dropzone" data-role="dropzone">
+          <input type="file" accept="image/*" multiple hidden data-role="file-input">
+          <div class="dropzone-inner">
+            <strong>Drop screenshots here</strong>
+            <span class="hint">
+              Endgame report and/or Tab scoreboard for <em>one</em> match.
+              Everything dropped together is treated as the same game.
+            </span>
+          </div>
+        </div>
+        <div class="attached" data-role="attached"></div>
+        <div class="extractor-note hint" data-role="extractor-note"></div>
+      </div>
+
+      <div class="panel metadata">
+        <div class="meta-block result-block">
+          <label class="meta-label">Result <span class="required">required</span></label>
+          <div class="result-buttons" data-role="result">
+            <button type="button" data-value="win">Win</button>
+            <button type="button" data-value="loss">Loss</button>
+            <button type="button" data-value="draw">Draw</button>
+          </div>
+        </div>
+
+        <div class="meta-block">
+          <label class="meta-label">Map</label>
+          <div class="map-grid" data-role="maps"></div>
+        </div>
+
+        <div class="meta-block meta-inline">
+          <div>
+            <label class="meta-label" for="played-at">Played at</label>
+            <input type="datetime-local" id="played-at" data-meta="played_at">
+          </div>
+          <div>
+            <label class="meta-label" for="duration">Duration (mm:ss)</label>
+            <input type="text" id="duration" placeholder="08:42" data-role="duration">
+          </div>
+          <div>
+            <label class="meta-label" for="rank-low">Rank range</label>
+            <div class="rank-range">
+              <select id="rank-low" data-meta="rank_range_low"></select>
+              <span>to</span>
+              <select id="rank-high" data-meta="rank_range_high"></select>
+            </div>
+          </div>
+          <div>
+            <label class="meta-label" for="team-size">Team size</label>
+            <select id="team-size" data-role="team-size">
+              <option value="5">5v5</option>
+              <option value="6">6v6</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="meta-block">
+          <label class="meta-label">Hero bans</label>
+          <div class="ban-grid" data-role="bans"></div>
+        </div>
+
+        <div class="meta-block">
+          <label class="meta-label" for="notes">Notes</label>
+          <textarea id="notes" rows="2" data-meta="notes"></textarea>
+        </div>
+      </div>
+
+      <div class="panel rosters">
+        <div class="team-block ally">
+          <h2>Your team</h2>
+          <div data-role="rows-ally"></div>
+        </div>
+        <div class="team-block enemy">
+          <h2>Enemy team</h2>
+          <div data-role="rows-enemy"></div>
+        </div>
+        <p class="hint">
+          The scoreboard is a snapshot — only one hero per player is stored, so
+          mid-match swaps are not captured.
+        </p>
+        <p class="hint keys">
+          <b>Enter</b> next row in the column · <b>↑ ↓</b> move · <b>Tab</b> next field ·
+          <b>1 2 3</b> win / loss / draw · <b>Ctrl+Enter</b> save
+        </p>
+      </div>
+
+      <div class="savebar">
+        <div class="problems" data-role="problems"></div>
+        <button type="button" class="primary" data-role="save" disabled>Save match</button>
+      </div>
+    </section>
+  </template>
+
+  <!-- ==================== Match list ==================== -->
+  <template id="tpl-matches">
+    <section class="panel">
+      <h1>Matches</h1>
+      <div data-role="summary" class="list-summary"></div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Played</th><th>Result</th><th>Map</th><th>Mode</th>
+            <th>My hero</th><th class="num">E</th><th class="num">D</th>
+            <th>Shots</th><th></th>
+          </tr>
+        </thead>
+        <tbody data-role="rows"></tbody>
+      </table>
+    </section>
+  </template>
+
+  <!-- ==================== Match detail ==================== -->
+  <template id="tpl-match">
+    <section class="panel">
+      <a class="back" href="#/matches">&larr; All matches</a>
+      <h1 data-role="title"></h1>
+      <div data-role="meta" class="detail-meta"></div>
+      <div data-role="teams"></div>
+      <div data-role="bans"></div>
+      <div data-role="sources"></div>
+    </section>
+  </template>
+
+  <!-- ==================== Players ==================== -->
+  <template id="tpl-players">
+    <section class="panel">
+      <h1>Players</h1>
+      <p class="hint">
+        Everyone seen on a scoreboard. Rows that could not be attributed to a
+        name are stored against the match, not against a person.
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr><th>Name</th><th>Tags</th><th class="num">Games seen</th><th>First seen</th>
+              <th>Last seen</th><th class="num">Nameplates</th><th></th></tr>
+        </thead>
+        <tbody data-role="rows"></tbody>
+      </table>
+    </section>
+  </template>
+
+  <template id="tpl-player">
+    <section class="panel">
+      <a class="back" href="#/players">&larr; All players</a>
+      <h1 data-role="name"></h1>
+      <div class="identity-row">
+        <div data-role="seen" class="detail-meta"></div>
+        <div data-role="dots"></div>
+      </div>
+      <div data-role="note" class="note-host"></div>
+      <div class="rate-cards" data-role="rates"></div>
+      <div data-role="averages"></div>
+      <div data-role="heroes"></div>
+      <div data-role="recent"></div>
+    </section>
+  </template>
+
+  <!-- ==================== Overall ==================== -->
+  <template id="tpl-overall">
+    <section class="overall">
+      <div class="panel overall-head">
+        <div class="overall-head-row">
+          <h1 data-role="heading">Overall</h1>
+          <label class="player-picker">
+            <span class="meta-label">Player</span>
+            <select data-role="player-select"></select>
+          </label>
+          <a class="back" data-role="player-link" hidden>Open player page &rarr;</a>
+        </div>
+        <div data-role="identity"></div>
+        <div data-role="note" class="note-host"></div>
+        <div class="rate-cards" data-role="headline"></div>
+        <p class="coverage" data-role="coverage"></p>
+      </div>
+
+      <aside class="overall-rail">
+        <div class="panel">
+          <h2>Top 5 win rates</h2>
+          <div data-role="top-rates"></div>
+          <p class="hint">Across map, hero, role, teammate and comp. Ranked by the
+             lower bound of a 95% interval, so a small perfect record does not
+             outrank a large good one. Five games minimum.</p>
+        </div>
+        <div class="panel">
+          <h2>Top 5 most-banned</h2>
+          <div data-role="top-bans"></div>
+        </div>
+        <div class="panel">
+          <h2>Needs work</h2>
+          <div data-role="worst"></div>
+        </div>
+      </aside>
+
+      <div class="overall-body" data-role="sections"></div>
+    </section>
+  </template>
+
+  <!-- ==================== Explore ==================== -->
+  <template id="tpl-stats">
+    <section class="panel">
+      <h1>Aggregates</h1>
+      <div class="filters" data-role="filters">
+        <label><span class="meta-label">Hero</span><select data-filter="hero_id"></select></label>
+        <label><span class="meta-label">Map</span><select data-filter="map_id"></select></label>
+        <label><span class="meta-label">Mode</span><select data-filter="mode"></select></label>
+        <label><span class="meta-label">Role</span>
+          <select data-filter="role">
+            <option value="">Any</option><option value="tank">Tank</option>
+            <option value="damage">Damage</option><option value="support">Support</option>
+          </select>
+        </label>
+        <label><span class="meta-label">Teammate</span><select data-filter="teammate_id"></select></label>
+        <label><span class="meta-label">Rank at least</span><select data-filter="rank_min"></select></label>
+        <label><span class="meta-label">Rank at most</span><select data-filter="rank_max"></select></label>
+        <label><span class="meta-label">From</span><input type="date" data-filter="date_from"></label>
+        <label><span class="meta-label">To</span><input type="date" data-filter="date_to"></label>
+        <button type="button" data-role="clear">Clear</button>
+      </div>
+      <div class="rate-cards" data-role="overall"></div>
+      <div data-role="averages"></div>
+      <div class="breakdowns" data-role="breakdowns"></div>
+    </section>
+  </template>
+
+  <!-- ==================== Settings ==================== -->
+  <template id="tpl-settings">
+    <section class="panel narrow">
+      <h1>Settings</h1>
+      <p class="hint">
+        Stored in the database, so a backup of <code>owtracker.db</code> captures
+        your whole setup.
+      </p>
+      <form data-role="form" class="settings-form"></form>
+      <button type="button" class="primary" data-role="save">Save settings</button>
+
+      <h2 style="margin-top:28px">Your data</h2>
+      <p class="hint">
+        Nothing here leaves this machine. Export writes a file to your
+        downloads; backup copies the database into <code>data/backups/</code>.
+      </p>
+      <div class="data-actions">
+        <a class="chip" href="/api/export/everything.csv">Export everything (CSV)</a>
+        <a class="chip" href="/api/export/matches.csv">matches.csv</a>
+        <a class="chip" href="/api/export/match_players.csv">match_players.csv</a>
+        <a class="chip" href="/api/export/players.csv">players.csv</a>
+        <button type="button" class="chip" data-role="backup">Back up database</button>
+      </div>
+      <div data-role="backups" class="hint"></div>
+    </section>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

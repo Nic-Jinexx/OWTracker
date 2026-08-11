@@ -1,0 +1,38 @@
+[
+  { "name": "Antarctic Peninsula", "mode": "control" },
+  { "name": "Busan",               "mode": "control" },
+  { "name": "Ilios",               "mode": "control" },
+  { "name": "Lijiang Tower",       "mode": "control" },
+  { "name": "Nepal",               "mode": "control" },
+  { "name": "Oasis",               "mode": "control" },
+  { "name": "Samoa",               "mode": "control" },
+
+  { "name": "Circuit Royal",         "mode": "escort" },
+  { "name": "Dorado",                "mode": "escort" },
+  { "name": "Havana",                "mode": "escort" },
+  { "name": "Junkertown",            "mode": "escort" },
+  { "name": "Rialto",                "mode": "escort" },
+  { "name": "Route 66",              "mode": "escort" },
+  { "name": "Shambali Monastery",    "mode": "escort" },
+  { "name": "Watchpoint: Gibraltar", "mode": "escort" },
+
+  { "name": "Blizzard World", "mode": "hybrid" },
+  { "name": "Eichenwalde",    "mode": "hybrid" },
+  { "name": "Hollywood",      "mode": "hybrid" },
+  { "name": "King's Row",     "mode": "hybrid" },
+  { "name": "Midtown",        "mode": "hybrid" },
+  { "name": "Numbani",        "mode": "hybrid" },
+  { "name": "Paraiso",        "mode": "hybrid" },
+
+  { "name": "Colosseo",         "mode": "push" },
+  { "name": "Esperanca",        "mode": "push" },
+  { "name": "New Queen Street", "mode": "push" },
+  { "name": "Runasapi",         "mode": "push" },
+
+  { "name": "Aatlis",         "mode": "flashpoint" },
+  { "name": "New Junk City",  "mode": "flashpoint" },
+  { "name": "Suravasa",       "mode": "flashpoint" },
+
+  { "name": "Hanaoka",          "mode": "clash" },
+  { "name": "Throne of Anubis", "mode": "clash" }
+]

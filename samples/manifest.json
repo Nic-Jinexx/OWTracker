@@ -1,0 +1,96 @@
+{
+  "_doc": [
+    "Every image in samples/ must have an entry here — tests/test_localize.py fails on an",
+    "undocumented file. That is deliberate: the corpus is only worth anything if what each",
+    "screenshot is meant to prove is written down.",
+    "",
+    "kind    — 'endgame_report' or 'in_game_scoreboard' (CLAUDE-OWTRACKER.md, Screenshot Types).",
+    "capture — 'crop' or 'fullscreen'. Crops have no screen geometry to anchor to; full-screen",
+    "          shots carry the game's own chrome around the board and prove the localizer finds",
+    "          the scoreboard inside a much larger frame.",
+    "localizes — false means the localizer is expected to refuse this image today. The reason is",
+    "          asserted in the tests, so if it ever starts succeeding, that gets noticed.",
+    "atlas_source — true means the digit atlas is cut from this image's ground truth. Anything",
+    "          with ground truth and atlas_source false is a held-out set, and is where the",
+    "          accuracy numbers that mean anything come from. It defaults to false on purpose:",
+    "          adding a new expected.json must never silently absorb the validation set into",
+    "          the training set."
+  ],
+
+  "images": [
+    {
+      "file": "kingsrowloss.png",
+      "kind": "endgame_report", "capture": "crop",
+      "size": [1198, 1157], "board_width_px": 950,
+      "team_size": 6, "expected": "kingsrowloss.expected.json", "atlas_source": true,
+      "notes": "Ground truth, and the image the digit atlas is cut from. Every row has a nameplate; four have title lines."
+    },
+    {
+      "file": "nepalloss.png",
+      "kind": "endgame_report", "capture": "crop",
+      "size": [1238, 1185], "board_width_px": 950,
+      "team_size": 6,
+      "notes": "One blue row has no nameplate."
+    },
+    {
+      "file": "route66Loss.png",
+      "kind": "endgame_report", "capture": "crop",
+      "size": [1258, 1157], "board_width_px": 970,
+      "team_size": 6,
+      "notes": "Two rows carry no title line."
+    },
+    {
+      "file": "blizzard worldLoss.png",
+      "kind": "endgame_report", "capture": "crop",
+      "size": [1190, 1189], "board_width_px": 974,
+      "team_size": 6,
+      "notes": "Three rows have no nameplate at all. Filename contains a space, which is why the loader decodes from bytes rather than handing a path to cv2.imread."
+    },
+    {
+      "file": "endgame_fullscreen_2329x1312.png",
+      "kind": "endgame_report", "capture": "fullscreen",
+      "size": [2329, 1312], "board_width_px": 1034,
+      "team_size": 6, "expected": "endgame_fullscreen_2329x1312.expected.json",
+      "atlas_source": false,
+      "notes": "Native full-screen capture with the game's FPS counter, chat box and ESC prompt around the board. Widest board in the corpus. One red row has no nameplate. Blue is 3 tank / 1 damage / 2 support — Open Queue, so role composition is not fixed. Held out from the atlas: this is the validation set."
+    },
+    {
+      "file": "endgame_fullscreen_2402x1349.png",
+      "kind": "endgame_report", "capture": "fullscreen",
+      "size": [2402, 1349], "board_width_px": 980,
+      "team_size": 6,
+      "notes": "Post-match SUMMARY/TEAMS/PERSONAL screen, full-screen. Three rows have no nameplate."
+    },
+    {
+      "file": "endgame_fullscreen_2502x1364.png",
+      "kind": "endgame_report", "capture": "fullscreen",
+      "size": [2502, 1364], "board_width_px": 992,
+      "team_size": 6,
+      "notes": "As above at a different resolution. One blue row has no nameplate."
+    },
+    {
+      "file": "ingame_tab_2511x1006.png",
+      "kind": "in_game_scoreboard", "capture": "fullscreen",
+      "size": [2511, 1006],
+      "team_size": 6, "board_width_px": 978, "localizes": false,
+      "refusal_contains": "in-game",
+      "bans": 5, "rank_range": true,
+      "notes": [
+        "The only in-game Tab shot in the corpus, and the only ultrawide (2.5:1). Carries the",
+        "things an endgame report cannot: the hero ban row, 'CONTROL | ANTARCTIC PENINSULA',",
+        "the match clock, and the rank range. app/extract/tab.py localizes all four; every",
+        "chrome threshold in that module is fitted to this one screenshot.",
+        "`localizes: false` is about the *endgame* localizer, which must keep refusing it.",
+        "It refuses on the column signature: both boards print E A D DMG H MIT, but the Tab",
+        "board packs them left to reserve its right edge for the mute buttons, so MIT lands",
+        "74 canonical units early where the endgame corpus agrees within 1.6.",
+        "An earlier note here blamed the refusal on the blue block overrunning the header by",
+        "~467 units. That was wrong. The Tab board aligns with its header strip as tightly as",
+        "any endgame report; the overrun was Junker Queen's blue hair in the hero panel, which",
+        "shares the block's scanlines and was being swallowed by a min-to-max column extent.",
+        "The red block is cut off — only 3 of 6 rows are in frame, which is why this sample",
+        "cannot validate roster reading."
+      ]
+    }
+  ]
+}

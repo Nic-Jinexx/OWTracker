@@ -1,0 +1,53 @@
+{
+  "_doc": "Perceptual hashes of hero portraits, cropped in canonical space and confirmed by the operator. Several per hero because the blue-side and red-side crops differ slightly. Rebuild with tools/build_hero_hashes.py when a hero is added.",
+  "heroes": {
+    "Mercy": [
+      "81ce2f9e2d52b49a"
+    ],
+    "Reinhardt": [
+      "9e3ad570157c9a31",
+      "9e3ad570177c9831",
+      "9f38d5f0155c9899",
+      "9fb8d1f0155c9a31"
+    ],
+    "Torbjorn": [
+      "81795985d8927e79",
+      "81795985d892fe71",
+      "81795987d8937e61",
+      "817985b67a66698e",
+      "817985b67a6e6986"
+    ],
+    "Winston": [
+      "e4b00f71e1a69b8e",
+      "e6b00f71e0a69b8e",
+      "ecb00f71c1a69e8e"
+    ],
+    "Ana": [
+      "b50fc81bd63489ba",
+      "fc3fc0695a52344d",
+      "fd0ac81bd6a489ba",
+      "fd2fc0685b523645",
+      "fd2fc8685b521645"
+    ],
+    "Sigma": [
+      "8d952c5e7559514e",
+      "8f356a516952ae39",
+      "8f952c5e6559514e"
+    ],
+    "Doomfist": [
+      "bf85dc129a517866",
+      "ff81cc1e9a517826"
+    ],
+    "Cassidy": [
+      "fe48298a3d635699",
+      "fe4829923963d599"
+    ],
+    "Zarya": [
+      "956c6b9e469b1934",
+      "97646b1e469a7934"
+    ],
+    "Hanzo": [
+      "fc2c5af0078da4b6"
+    ]
+  }
+}

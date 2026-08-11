@@ -1,0 +1,242 @@
+[
+  {
+    "tier": "Bronze",
+    "division": 5,
+    "ordinal": 1,
+    "name": "Bronze 5"
+  },
+  {
+    "tier": "Bronze",
+    "division": 4,
+    "ordinal": 2,
+    "name": "Bronze 4"
+  },
+  {
+    "tier": "Bronze",
+    "division": 3,
+    "ordinal": 3,
+    "name": "Bronze 3"
+  },
+  {
+    "tier": "Bronze",
+    "division": 2,
+    "ordinal": 4,
+    "name": "Bronze 2"
+  },
+  {
+    "tier": "Bronze",
+    "division": 1,
+    "ordinal": 5,
+    "name": "Bronze 1"
+  },
+  {
+    "tier": "Silver",
+    "division": 5,
+    "ordinal": 6,
+    "name": "Silver 5"
+  },
+  {
+    "tier": "Silver",
+    "division": 4,
+    "ordinal": 7,
+    "name": "Silver 4"
+  },
+  {
+    "tier": "Silver",
+    "division": 3,
+    "ordinal": 8,
+    "name": "Silver 3"
+  },
+  {
+    "tier": "Silver",
+    "division": 2,
+    "ordinal": 9,
+    "name": "Silver 2"
+  },
+  {
+    "tier": "Silver",
+    "division": 1,
+    "ordinal": 10,
+    "name": "Silver 1"
+  },
+  {
+    "tier": "Gold",
+    "division": 5,
+    "ordinal": 11,
+    "name": "Gold 5"
+  },
+  {
+    "tier": "Gold",
+    "division": 4,
+    "ordinal": 12,
+    "name": "Gold 4"
+  },
+  {
+    "tier": "Gold",
+    "division": 3,
+    "ordinal": 13,
+    "name": "Gold 3"
+  },
+  {
+    "tier": "Gold",
+    "division": 2,
+    "ordinal": 14,
+    "name": "Gold 2"
+  },
+  {
+    "tier": "Gold",
+    "division": 1,
+    "ordinal": 15,
+    "name": "Gold 1"
+  },
+  {
+    "tier": "Platinum",
+    "division": 5,
+    "ordinal": 16,
+    "name": "Platinum 5"
+  },
+  {
+    "tier": "Platinum",
+    "division": 4,
+    "ordinal": 17,
+    "name": "Platinum 4"
+  },
+  {
+    "tier": "Platinum",
+    "division": 3,
+    "ordinal": 18,
+    "name": "Platinum 3"
+  },
+  {
+    "tier": "Platinum",
+    "division": 2,
+    "ordinal": 19,
+    "name": "Platinum 2"
+  },
+  {
+    "tier": "Platinum",
+    "division": 1,
+    "ordinal": 20,
+    "name": "Platinum 1"
+  },
+  {
+    "tier": "Diamond",
+    "division": 5,
+    "ordinal": 21,
+    "name": "Diamond 5"
+  },
+  {
+    "tier": "Diamond",
+    "division": 4,
+    "ordinal": 22,
+    "name": "Diamond 4"
+  },
+  {
+    "tier": "Diamond",
+    "division": 3,
+    "ordinal": 23,
+    "name": "Diamond 3"
+  },
+  {
+    "tier": "Diamond",
+    "division": 2,
+    "ordinal": 24,
+    "name": "Diamond 2"
+  },
+  {
+    "tier": "Diamond",
+    "division": 1,
+    "ordinal": 25,
+    "name": "Diamond 1"
+  },
+  {
+    "tier": "Master",
+    "division": 5,
+    "ordinal": 26,
+    "name": "Master 5"
+  },
+  {
+    "tier": "Master",
+    "division": 4,
+    "ordinal": 27,
+    "name": "Master 4"
+  },
+  {
+    "tier": "Master",
+    "division": 3,
+    "ordinal": 28,
+    "name": "Master 3"
+  },
+  {
+    "tier": "Master",
+    "division": 2,
+    "ordinal": 29,
+    "name": "Master 2"
+  },
+  {
+    "tier": "Master",
+    "division": 1,
+    "ordinal": 30,
+    "name": "Master 1"
+  },
+  {
+    "tier": "Grandmaster",
+    "division": 5,
+    "ordinal": 31,
+    "name": "Grandmaster 5"
+  },
+  {
+    "tier": "Grandmaster",
+    "division": 4,
+    "ordinal": 32,
+    "name": "Grandmaster 4"
+  },
+  {
+    "tier": "Grandmaster",
+    "division": 3,
+    "ordinal": 33,
+    "name": "Grandmaster 3"
+  },
+  {
+    "tier": "Grandmaster",
+    "division": 2,
+    "ordinal": 34,
+    "name": "Grandmaster 2"
+  },
+  {
+    "tier": "Grandmaster",
+    "division": 1,
+    "ordinal": 35,
+    "name": "Grandmaster 1"
+  },
+  {
+    "tier": "Champion",
+    "division": 5,
+    "ordinal": 36,
+    "name": "Champion 5"
+  },
+  {
+    "tier": "Champion",
+    "division": 4,
+    "ordinal": 37,
+    "name": "Champion 4"
+  },
+  {
+    "tier": "Champion",
+    "division": 3,
+    "ordinal": 38,
+    "name": "Champion 3"
+  },
+  {
+    "tier": "Champion",
+    "division": 2,
+    "ordinal": 39,
+    "name": "Champion 2"
+  },
+  {
+    "tier": "Champion",
+    "division": 1,
+    "ordinal": 40,
+    "name": "Champion 1"
+  }
+]
