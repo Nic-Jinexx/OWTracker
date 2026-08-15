@@ -76,6 +76,14 @@ def empty_row(team: str, row_index: int) -> dict:
         # is exactly how the match view ended up linking at a 404 for a year.
         "nameplate_crop_url": None,
         "nameplate_confidence": None,
+        # The portrait's hash and picture, carried for the same two reasons:
+        # the commit path teaches `hero_portraits` from the hash, and the review
+        # grid shows the picture so confirming a hero is a look rather than a
+        # guess. Kept even when the portrait was recognized — a second angle on
+        # a hero already known is still worth storing.
+        "portrait_phash": None,
+        "portrait_crop": None,
+        "portrait_crop_url": None,
     }
     for name in ROW_FIELDS:
         row[name] = field(None)
@@ -205,7 +213,8 @@ def merge_draft(base: dict, incoming: dict) -> dict:
             if loser is not None:
                 superseded.append({"path": f"rows[{key[0]}:{key[1]}].{name}", "value": loser})
         for passthrough in ("nameplate_phash", "nameplate_width", "nameplate_crop",
-                            "nameplate_crop_url", "nameplate_confidence", "player_id"):
+                            "nameplate_crop_url", "nameplate_confidence", "player_id",
+                            "portrait_phash", "portrait_crop", "portrait_crop_url"):
             if incoming_row.get(passthrough) and not target.get(passthrough):
                 target[passthrough] = incoming_row[passthrough]
 

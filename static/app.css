@@ -255,6 +255,45 @@ button.primary {
   margin-bottom: 2px;
 }
 
+/* The portrait sits above its dropdown, the way the nameplate sits above the
+   name box: same relationship, so it reads as the same idea. Square-ish, since
+   the crop is 116x122 canonical units. */
+.hero-cell { min-width: 0; }
+
+.portrait-crop {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* ---------- learned portraits (settings) ---------- */
+
+.portrait-library {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.portrait-library .chip { display: inline-flex; align-items: center; gap: 6px; }
+.portrait-library .chip .muted { font-size: 11px; }
+
+.portrait-library .link-button {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.portrait-library .link-button:hover { color: var(--enemy); }
+
 /* ---------- save bar ---------- */
 
 .savebar {
@@ -339,6 +378,9 @@ a { color: var(--text); }
 .dropzone:hover { border-color: var(--muted); }
 .dropzone.dragging { border-color: var(--accent); background: var(--panel-2); }
 .dropzone.busy { opacity: .6; pointer-events: none; }
+/* Flagged while the operator is being told to press Ctrl+V, so the instruction
+   and the thing it fills point at each other. */
+.dropzone.awaiting-paste { border-color: var(--accent); border-style: solid; }
 .dropzone-inner strong { display: block; margin-bottom: 4px; }
 .dropzone .hint { margin: 0; }
 
@@ -364,6 +406,17 @@ a { color: var(--text); }
 
 .attached figcaption { font-size: 11px; color: var(--muted); word-break: break-all; }
 .attached select { width: 100%; margin-top: 5px; font-size: 12px; }
+.attached button[data-role="remove"] { width: 100%; margin-top: 5px; font-size: 12px; }
+
+.dropzone-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.dropzone-actions .hint { flex: 1 1 260px; }
 
 .extractor-note { margin-top: 10px; }
 

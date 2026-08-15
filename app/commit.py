@@ -47,6 +47,45 @@ def _get_or_create_player(conn: sqlite3.Connection, display_name: str, now: str)
     return int(cursor.lastrowid)
 
 
+def _learn_portrait(conn: sqlite3.Connection, phash: str | None,
+                    hero_id: int | None, now: str) -> None:
+    """Teach `hero_portraits` that this hash is this hero.
+
+    Refuses to write a hash another hero already claims. Two heroes holding the
+    same bits does not produce a wrong answer — `identify`'s margin rule sees a
+    tie and returns unknown — but it makes the matcher permanently worse at
+    *both* of them, which is a strange price to pay for one mis-clicked
+    dropdown. The existing claim stands and the operator can drop it from
+    Settings, where every learned portrait is listed.
+
+    Silent, because a commit is not the place to argue: the match itself is
+    fine, only the optional lesson is declined.
+    """
+    if not phash or hero_id is None:
+        return
+    owner = conn.execute(
+        "SELECT hero_id FROM hero_portraits WHERE phash = ? LIMIT 1", (phash,)
+    ).fetchone()
+    if owner is not None and int(owner["hero_id"]) != int(hero_id):
+        return
+
+    known = conn.execute(
+        "SELECT id FROM hero_portraits WHERE hero_id = ? AND phash = ?",
+        (hero_id, phash),
+    ).fetchone()
+    if known:
+        conn.execute(
+            "UPDATE hero_portraits SET times_matched = times_matched + 1 WHERE id = ?",
+            (known["id"],),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO hero_portraits (hero_id, phash, first_seen, times_matched) "
+            "VALUES (?, ?, ?, 1)",
+            (hero_id, phash, now),
+        )
+
+
 def _assign_season(conn: sqlite3.Connection, match_id: int) -> None:
     """File one match into whichever season's range contains its date.
 
@@ -290,6 +329,18 @@ def commit_draft(conn: sqlite3.Connection, draft_id: int) -> int:
                         "VALUES (?, ?, ?, ?, 1)",
                         (player_id, phash, entry.get("nameplate_width"), now),
                     )
+
+            # A confirmed hero teaches the matcher this portrait, exactly as a
+            # confirmed name teaches it a nameplate. This is the only way the
+            # hero library ever grows on the operator's machine: the shipped one
+            # covers what the sample corpus happened to contain, and there is no
+            # offline source of hero art to fill in the rest.
+            _learn_portrait(
+                conn,
+                entry.get("portrait_phash"),
+                entry.get("hero_id", draft_module.field(None))["value"],
+                now,
+            )
 
         for ban in payload.get("bans", []):
             if ban.get("hero_id") is None:

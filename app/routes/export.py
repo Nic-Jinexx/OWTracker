@@ -116,9 +116,17 @@ def backup_database() -> dict:
 # the foreign keys without relying on cascades. Reference data (heroes, maps,
 # ranks, tags) and settings are deliberately absent: they are not "your data",
 # and wiping them would leave an app that cannot record the next match.
+#
+# `hero_portraits` is in the list even though the heroes table is not. The hero
+# *list* is shipped reference data; which portrait the matcher learned to call
+# which hero is something this operator taught it, on the same footing as
+# `player_nameplates` — and clearing the matches while keeping the recognition
+# learned from them would leave the app confidently naming heroes from games it
+# no longer holds.
 USER_TABLES = (
     "field_provenance", "match_bans", "match_sources", "match_players",
-    "player_nameplates", "player_tags", "drafts", "matches", "players",
+    "player_nameplates", "hero_portraits", "player_tags", "drafts", "matches",
+    "players",
 )
 
 CLEAR_CONFIRMATION = "DELETE EVERYTHING"

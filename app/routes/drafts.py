@@ -17,6 +17,7 @@ from .. import paths
 from .. import settings as settings_module
 from ..commit import CommitError, commit_draft
 from ..db import get_conn, utcnow
+from ..extract import heroes as heroes_module
 from ..extract import nameplates
 from ..extract.local import LocalExtractor
 
@@ -58,11 +59,14 @@ def create_draft(body: dict | None = None) -> dict:
         # a disagreement that did not exist.
         payload["meta"]["team_size"] = draft_module.field(team_size, source="default")
 
-        # Pre-mark the operator's own row if their name is configured.
-        my_name = settings_module.get(conn, "my_display_name")
-        if my_name:
-            payload["rows"][0]["is_me"] = True
-            payload["rows"][0]["player_name"] = draft_module.field(my_name)
+        # Nothing is pre-marked. A draft used to open with row 1 flagged as the
+        # operator and their configured name typed into it, which was wrong more
+        # often than right: the scoreboard does not sort you to the top, so the
+        # guess had to be corrected on most matches, and the pre-filled name
+        # then argued with the name reader over a row that was not yours.
+        # Choosing your own row is one click and it is always correct.
+        # `my_display_name` is still used — see `app/routes/stats.py`, which
+        # labels your own statistics with it.
 
         now = utcnow()
         cursor = conn.execute(
@@ -143,7 +147,8 @@ def patch_draft(draft_id: int, body: dict) -> dict:
                     continue
                 if name in ("player_id", "nameplate_phash", "nameplate_width",
                             "nameplate_crop", "nameplate_crop_url",
-                            "nameplate_confidence"):
+                            "nameplate_confidence", "portrait_phash",
+                            "portrait_crop", "portrait_crop_url"):
                     target[name] = value
                     continue
                 if name not in draft_module.ROW_FIELDS:
@@ -191,11 +196,15 @@ async def attach_files(
             or settings_module.get(conn, "default_team_size"),
             nameplate_library=nameplates.load_library(conn),
             nameplate_max_distance=settings_module.get(conn, "nameplate_hash_max_distance"),
+            # Shipped library plus everything this database has been taught.
+            # Read here, per upload, rather than cached: committing a match adds
+            # to it, so a cache would go stale exactly when it had just improved.
+            hero_library=heroes_module.merged_library(conn),
             hero_max_distance=settings_module.get(conn, "hero_hash_max_distance"),
             read_names=bool(settings_module.get(conn, "read_unknown_names")),
         )
-        hero_ids = {row["name"]: row["id"]
-                    for row in conn.execute("SELECT id, name FROM heroes")}
+        hero_rows = {row["name"]: (row["id"], row["role"])
+                     for row in conn.execute("SELECT id, name, role FROM heroes")}
 
         attached: list[dict] = []
         warnings: list[str] = []
@@ -246,7 +255,7 @@ async def attach_files(
             result = extractor.extract(stored["absolute"], kind)
             warnings.extend(result.warnings)
             if result.ok:
-                _resolve_heroes(result.draft, hero_ids, kind)
+                _resolve_heroes(result.draft, hero_rows, kind)
                 _store_crops(draft_id, result, stored["sha256"])
                 # Stamp origin so the merge rules can rank endgame over in-game.
                 _stamp_origin(result.draft, kind)
@@ -260,39 +269,67 @@ async def attach_files(
     return {"id": draft_id, "attached": attached, "warnings": warnings, **_envelope(payload)}
 
 
-def _resolve_heroes(fragment: dict, hero_ids: dict[str, int], kind: str) -> None:
-    """Turn the extractor's hero *names* into `heroes.id` envelopes.
+def _resolve_heroes(fragment: dict, hero_rows: dict[str, tuple[int, str]],
+                    kind: str) -> None:
+    """Turn the extractor's hero *names* into `heroes.id` envelopes, and fill in
+    the role that identifying a hero implies.
 
     The extractor works in hero names because that is what a hash library is
     keyed by and it has no database; the draft holds foreign keys. A name that
     is not in the table is dropped rather than guessed at — that means the seed
     list and the hash library have drifted, which is worth noticing, not
     papering over.
+
+    Role rides along at the *hero's* confidence, not at 1.0. Knowing Ana is a
+    support is certain; that this portrait is Ana is not, and a role stated more
+    confidently than the hero it was derived from would be claiming to know
+    something the identification never established. It goes through the ordinary
+    merge rules, so a role the operator typed still wins.
     """
     for row in fragment.get("rows", []):
         name = row.pop("hero_name", None)
         confidence = row.pop("hero_confidence", None)
-        hero_id = hero_ids.get(name) if name else None
-        if hero_id is not None:
+        entry = hero_rows.get(name) if name else None
+        if entry is not None:
+            hero_id, role = entry
             row["hero_id"] = draft_module.field(hero_id, source="template",
                                                 origin=kind, confidence=confidence)
+            row["role"] = draft_module.field(role, source="template",
+                                             origin=kind, confidence=confidence)
+
+
+# Crop kind -> (subfolder, draft row key). Both kinds are written the same way
+# and differ only in where they land and which field points at them.
+CROP_KINDS = {
+    "nameplate": ("nameplates", "nameplate_crop"),
+    "portrait": ("portraits", "portrait_crop"),
+}
 
 
 def _store_crops(draft_id: int, result, sha256: str) -> None:
-    """Write nameplate crops next to the screenshot they came from.
+    """Write nameplate and portrait crops next to the screenshot they came from.
 
     Under `data/screenshots/`, because that is the only tree the app serves —
     and recorded as a portable path plus a ready-made URL, because the review
     grid needs a URL and building one by hand is how the old code ended up
     linking at `/data/screenshots/...`, which is not mounted.
+
+    Kinds go in separate folders rather than sharing one on a filename prefix:
+    the two crops of a given row would otherwise collide on the name, and the
+    portrait would silently overwrite the nameplate.
     """
     if not result.crops:
         return
-    folder = paths.DRAFT_SCREENSHOTS_DIR / str(draft_id) / "nameplates"
-    folder.mkdir(parents=True, exist_ok=True)
     by_position = {(row["team"], row["row_index"]): row
                    for row in result.draft.get("rows", [])}
     for crop in result.crops:
+        # Default to nameplate for a crop with no kind — the extractor labelled
+        # nothing before portraits existed, and a stale draft payload may still
+        # be in flight.
+        subfolder, key = CROP_KINDS.get(crop.get("kind", "nameplate"),
+                                        CROP_KINDS["nameplate"])
+        folder = paths.DRAFT_SCREENSHOTS_DIR / str(draft_id) / subfolder
+        folder.mkdir(parents=True, exist_ok=True)
         target = folder / f"{sha256[:8]}-{crop['team']}-{crop['row_index']}.png"
         ok, buffer = cv2.imencode(".png", crop["image"])
         if not ok:
@@ -300,8 +337,8 @@ def _store_crops(draft_id: int, result, sha256: str) -> None:
         target.write_bytes(buffer.tobytes())
         row = by_position.get((crop["team"], crop["row_index"]))
         if row is not None:
-            row["nameplate_crop"] = paths.portable(target)
-            row["nameplate_crop_url"] = paths.screenshot_url(paths.portable(target))
+            row[key] = paths.portable(target)
+            row[key + "_url"] = paths.screenshot_url(paths.portable(target))
 
 
 def _stamp_origin(fragment: dict, kind: str) -> None:
@@ -347,11 +384,119 @@ def correct_kind(draft_id: int, sha256: str, body: dict) -> dict:
     return {"id": draft_id, **_envelope(payload)}
 
 
+@router.delete("/{draft_id}/files/{sha256}")
+def remove_file(draft_id: int, sha256: str) -> dict:
+    """Detach a screenshot from an open draft and undo what it filled in.
+
+    The undo is the part that matters. Detaching the file alone would leave the
+    wrong screenshot's numbers sitting in the grid, and attaching the right one
+    afterwards would *not* replace them: two endgame reports rank equally under
+    `merge_field`, so the incumbent wins every disagreement. Swapping a
+    mis-dropped screenshot would have quietly kept the first one's statistics.
+
+    So every extracted value goes. Anything the operator typed is `source =
+    'manual'` and is deliberately kept — that is the same line the merge rules
+    already draw, and re-reading a screenshot never overwrites typed values
+    either. Conflicts and superseded records go with them, since both describe
+    a disagreement that no longer has two sides.
+
+    Committed matches are unreachable from here: this is an open draft only.
+    """
+    with get_conn() as conn:
+        loaded = _load(conn, draft_id)
+        if loaded["row"]["status"] != "open":
+            raise HTTPException(409, "Draft is no longer open")
+        payload = loaded["payload"]
+
+        remaining = [f for f in payload["files"] if not f["sha256"].startswith(sha256)]
+        removed = [f for f in payload["files"] if f["sha256"].startswith(sha256)]
+        if not removed:
+            raise HTTPException(404, "No such file on this draft")
+        payload["files"] = remaining
+
+        for entry in removed:
+            _delete_quietly(paths.ROOT / entry["path"])
+            _drop_crops(draft_id, entry["sha256"], payload)
+
+        _clear_extracted(payload)
+        _save(conn, draft_id, payload)
+
+    return {"id": draft_id, "removed": len(removed), **_envelope(payload)}
+
+
+def _delete_quietly(path) -> None:
+    """Best effort. A screenshot that cannot be deleted is not a reason to fail
+    the request — the draft no longer references it either way, and invariant 5
+    is about never deleting a *committed* file, which this is not."""
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+# Row keys carrying a crop or a match the extractor produced, grouped by the
+# crop path that identifies which screenshot they came from.
+CROP_GROUPS = (
+    ("nameplate_crop", ("nameplate_crop", "nameplate_crop_url", "nameplate_phash",
+                        "nameplate_width", "nameplate_confidence", "player_id")),
+    ("portrait_crop", ("portrait_crop", "portrait_crop_url", "portrait_phash")),
+)
+
+
+def _drop_crops(draft_id: int, sha256: str, payload: dict) -> None:
+    """Delete the crops cut from one screenshot, and unhook the rows using them.
+
+    Keyed on the sha prefix baked into the crop filename by `_store_crops`,
+    which is the only record of which screenshot a crop came from — the draft
+    row stores a path, not a source. Removing one of two attached screenshots
+    therefore leaves the other one's crops untouched.
+    """
+    marker = f"/{sha256[:8]}-"
+    for subfolder, _ in CROP_KINDS.values():
+        folder = paths.DRAFT_SCREENSHOTS_DIR / str(draft_id) / subfolder
+        if not folder.exists():
+            continue
+        for path in folder.glob(f"{sha256[:8]}-*"):
+            _delete_quietly(path)
+
+    for row in payload.get("rows", []):
+        for path_key, keys in CROP_GROUPS:
+            stored = (row.get(path_key) or "").replace("\\", "/")
+            if stored and marker in stored:
+                for key in keys:
+                    row[key] = None
+
+
+def _clear_extracted(payload: dict) -> None:
+    """Blank every value the extractor produced, keeping every value typed.
+
+    Nothing is re-read here. Removing a screenshot is a subtraction, so a draft
+    that still has another file attached keeps that file's crops and simply
+    loses the values — the operator drops the right screenshot in to refill,
+    and with the grid blank it merges cleanly instead of losing every
+    disagreement to the incumbent.
+    """
+    def wipe(envelope):
+        return (draft_module.field(None)
+                if isinstance(envelope, dict) and envelope.get("source") == "template"
+                else envelope)
+
+    for name in draft_module.META_FIELDS:
+        payload["meta"][name] = wipe(payload["meta"].get(name, draft_module.field(None)))
+    for row in payload.get("rows", []):
+        for name in draft_module.ROW_FIELDS:
+            row[name] = wipe(row.get(name, draft_module.field(None)))
+
+    payload["conflicts"] = []
+    payload["superseded"] = []
+
+
 @router.get("/{draft_id}/extractor")
 def extractor_status(draft_id: int) -> dict:
     """What the extractor can currently do — surfaced in the drop zone so a
     missing reference library reads as 'not built yet', not 'broken'."""
-    return LocalExtractor.reference_status()
+    with get_conn() as conn:
+        return LocalExtractor.reference_status(conn)
 
 
 @router.post("/{draft_id}/conflicts")

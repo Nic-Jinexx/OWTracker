@@ -182,16 +182,21 @@ async function renderEntry(draftId) {
   const extractorNote = root.querySelector('[data-role="extractor-note"]');
 
   api.get(`/api/drafts/${draft.id}/extractor`).then((status) => {
-    if (status.glyph_atlas_ready && status.hero_hashes_ready) {
+    // The hero half of this is worth stating as a number. It is the one library
+    // that grows while you use the app, and "18 heroes" tells you the column
+    // will mostly fill itself in a way "loaded" never could.
+    const heroes = status.heroes_known
+      ? `Heroes known: ${status.heroes_known}`
+        + (status.heroes_learned ? ` (${status.heroes_learned} learned from your matches)` : '')
+        + '. Any hero you pick is remembered for next time.'
+      : 'No hero portraits known yet — pick each hero once and it is remembered.';
+    if (status.glyph_atlas_ready) {
       extractorNote.textContent =
-        'Reference libraries loaded — dropped screenshots will be read automatically.';
+        `Screenshots are read automatically. ${heroes}`;
     } else {
-      const missing = [];
-      if (!status.glyph_atlas_ready) missing.push('digit atlas');
-      if (!status.hero_hashes_ready) missing.push('hero portraits');
       extractorNote.innerHTML =
-        `Reference libraries not built yet (${missing.join(', ')}). Screenshots are ` +
-        `archived with the match, but the values below still need typing in.`;
+        'The digit atlas is not built, so statistics still need typing in. '
+        + `Screenshots are archived with the match. ${heroes}`;
     }
   });
 
@@ -205,8 +210,29 @@ async function renderEntry(draftId) {
           <option value="endgame_report"${f.kind === 'endgame_report' ? ' selected' : ''}>Endgame report</option>
           <option value="in_game_scoreboard"${f.kind === 'in_game_scoreboard' ? ' selected' : ''}>Tab scoreboard</option>
         </select>
+        <button type="button" class="chip danger" data-role="remove">Remove</button>
       </figure>`).join('');
   }
+
+  attachedBox.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-role="remove"]');
+    if (!button) return;
+    const sha = button.closest('figure').dataset.sha;
+    // Say what goes and what stays. The distinction is not guessable from a
+    // button labelled Remove, and getting it wrong either way is expensive.
+    if (!confirm('Remove this screenshot?\n\n'
+                 + 'Everything it read is cleared, so a replacement fills the grid '
+                 + 'cleanly. Anything you typed yourself is kept.')) return;
+    try {
+      const response = await api.del(`/api/drafts/${draft.id}/files/${sha}`);
+      payload = response.payload;
+      paintAttached();
+      paintResult(); paintMap(); paintBans(); paintTeamSize(); paintAllRows();
+      renderProblems(response.problems);
+      showWarnings([]);
+      toast('Screenshot removed.');
+    } catch (error) { toast(error.message); }
+  });
 
   attachedBox.addEventListener('change', async (event) => {
     const select = event.target.closest('[data-role="kind"]');
@@ -289,6 +315,107 @@ async function renderEntry(draftId) {
   dropzone.addEventListener('drop', (event) => {
     if (event.dataTransfer?.files?.length) upload(event.dataTransfer.files);
   });
+
+  /* --- paste -------------------------------------------------------------
+   *
+   * Snipping Tool (Win+Shift+S) puts the capture on the clipboard and nowhere
+   * else. Without this the only way in is to save it to a file first and then
+   * go and find that file; with it, Ctrl+V anywhere on this page is the whole
+   * gesture.
+   *
+   * A pasted image arrives with bytes but no useful name — browsers call every
+   * one of them "image.png". The name is invented here rather than left alone
+   * because it is load-bearing downstream: the server's `guess_kind` reads it,
+   * and the archived file is named from it, so a draft folder full of
+   * image.png would be impossible to tell apart afterwards. */
+
+  const PASTE_SUFFIX = {
+    'image/png': '.png', 'image/jpeg': '.jpg',
+    'image/bmp': '.bmp', 'image/webp': '.webp',
+  };
+
+  // Named so `guess_kind` reads it as an endgame report, which is what a paste
+  // almost always is. A Tab shot is still correctable on the attached
+  // thumbnail, exactly as a dropped one is.
+  function namePasted(blob, type, index) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    return new File([blob], `pasted-${stamp}-${index + 1}${PASTE_SUFFIX[type]}`, { type });
+  }
+
+  function pastedImages(event) {
+    const images = [];
+    for (const item of [...(event.clipboardData?.items || [])]) {
+      if (item.kind !== 'file' || !PASTE_SUFFIX[item.type]) continue;
+      const blob = item.getAsFile();
+      if (blob) images.push(namePasted(blob, item.type, images.length));
+    }
+    return images;
+  }
+
+  /* The button and the keystroke are not the same mechanism, which is why the
+   * button is mostly a signpost. Ctrl+V fires a `paste` event that hands the
+   * image over with no permission of any kind — but it is invisible, and a
+   * feature whose only entrance is an unmentioned shortcut may as well not
+   * exist. A click has no event to read, so reading the clipboard from one
+   * needs the `clipboard-read` permission.
+   *
+   * **It must never ask for it.** Measured here: calling `clipboard.read()`
+   * without the permission raises Chrome's prompt, and that prompt is a modal
+   * that stops the page dead — strictly worse than the keystroke it was trying
+   * to save. So the Permissions API is queried first, which answers without
+   * prompting, and the clipboard is only read when the answer is already
+   * 'granted'. Otherwise the button says the gesture and flags the drop zone,
+   * which is all the operator actually needed. */
+  const pasteButton = root.querySelector('[data-role="paste"]');
+  pasteButton?.addEventListener('click', async () => {
+    let granted = false;
+    try {
+      granted = navigator.clipboard?.read
+        && (await navigator.permissions.query({ name: 'clipboard-read' })).state === 'granted';
+    } catch { granted = false; }
+
+    if (!granted) {
+      toast('Press Ctrl+V now to paste your snip.', 4000);
+      dropzone.classList.add('awaiting-paste');
+      setTimeout(() => dropzone.classList.remove('awaiting-paste'), 4000);
+      return;
+    }
+
+    let images = [];
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((t) => PASTE_SUFFIX[t]);
+        if (type) images.push(namePasted(await item.getType(type), type, images.length));
+      }
+    } catch (error) {
+      toast(`Could not read the clipboard (${error.name}). Press Ctrl+V instead.`);
+      return;
+    }
+    if (!images.length) {
+      toast('No image on the clipboard. Snip one with Win+Shift+S first.');
+      return;
+    }
+    await upload(images);
+  });
+
+  async function onPaste(event) {
+    // Self-removing. The router has no teardown hook — it just replaces the
+    // view's innerHTML — so a listener left behind by a previous draft would
+    // otherwise sit on `document` forever, uploading to a draft that is no
+    // longer on screen.
+    if (!document.body.contains(dropzone)) {
+      document.removeEventListener('paste', onPaste);
+      return;
+    }
+    const images = pastedImages(event);
+    // No image on the clipboard means this is an ordinary text paste into a
+    // name box or the notes field. Leave it entirely alone.
+    if (!images.length) return;
+    event.preventDefault();
+    await upload(images);
+  }
+
+  document.addEventListener('paste', onPaste);
 
   // --- result -----------------------------------------------------------
 
@@ -421,6 +548,15 @@ async function renderEntry(draftId) {
            { url: row.nameplate_crop_url, path: row.nameplate_crop })}"
            alt="nameplate" title="Type the name once — it fills itself in next time.">`
       : '';
+    /* The portrait is shown whether or not it was recognized, and that is the
+     * point of showing it at all. A wrong auto-match is otherwise just a hero
+     * name sitting in a dropdown with nothing to check it against — and picking
+     * a hero now teaches the matcher, so a confirmation has to be a look. */
+    const portrait = row.portrait_crop
+      ? `<img class="portrait-crop" src="${screenshotUrl(
+           { url: row.portrait_crop_url, path: row.portrait_crop })}"
+           alt="portrait" title="Pick the hero once — it fills itself in next time.">`
+      : '';
     return `
       <div class="roster-row" data-team="${row.team}" data-index="${row.row_index}">
         <button type="button" class="me-toggle${isMe}" data-field="is_me" title="This is me">ME</button>
@@ -430,7 +566,7 @@ async function renderEntry(draftId) {
           <option value="damage">Damage</option>
           <option value="support">Support</option>
         </select>
-        <select data-field="hero_id">${heroOptions}</select>
+        <div class="hero-cell">${portrait}<select data-field="hero_id">${heroOptions}</select></div>
         <div>${crop}<input type="text" data-field="player_name" placeholder="name"></div>
         ${STAT_COLUMNS.map(([field]) =>
           `<input type="text" inputmode="numeric" class="num" data-field="${field}">`).join('')}
@@ -457,9 +593,22 @@ async function renderEntry(draftId) {
   }
 
   function rosterShapeMatches() {
-    return ['ally', 'enemy'].every((team) =>
-      root.querySelectorAll(`[data-role="rows-${team}"] .roster-row[data-team]`).length
-        === rowsFor(team).length);
+    return ['ally', 'enemy'].every((team) => {
+      const elements = [...root.querySelectorAll(
+        `[data-role="rows-${team}"] .roster-row[data-team]`)];
+      const rows = rowsFor(team);
+      if (elements.length !== rows.length) return false;
+      /* The crops are baked into the row markup by `rowMarkup`, and they only
+       * exist after the first upload — by which time the roster was already
+       * built from a blank draft. Comparing row *counts* alone missed that
+       * entirely: a 6v6 screenshot dropped on a 6v6 draft leaves the count
+       * unchanged, so nothing rebuilt and the crops never appeared at all.
+       * `paintRow` cannot cover for it either, since it only assigns values to
+       * inputs that already exist. */
+      return rows.every((row, index) =>
+        !!elements[index].querySelector('.nameplate-crop') === !!row.nameplate_crop
+        && !!elements[index].querySelector('.portrait-crop') === !!row.portrait_crop);
+    });
   }
 
   buildRosters();
@@ -1481,6 +1630,36 @@ async function renderSettings() {
     } catch (error) { toast(error.message); }
   });
 
+  // --- learned hero portraits -------------------------------------------
+  const portraitBox = node.querySelector('[data-role="portraits"]');
+  async function showPortraits() {
+    const data = await api.get('/api/reference/hero-portraits');
+    const chips = data.learned.map((h) => `
+      <span class="chip">${esc(h.hero_name)}
+        <span class="muted">${h.portraits} view${h.portraits === 1 ? '' : 's'}</span>
+        <button type="button" class="link-button" data-forget="${h.hero_id}"
+                data-name="${esc(h.hero_name)}" title="Forget this hero's portraits">×</button>
+      </span>`).join('');
+    portraitBox.innerHTML = `
+      <p class="hint">Recognizing ${data.heroes_known} of ${data.heroes_total} heroes
+        — ${data.shipped.length} shipped, ${data.learned.length} learned from
+        ${data.learned_portraits} portrait${data.learned_portraits === 1 ? '' : 's'}.</p>
+      ${data.learned.length
+        ? `<div class="portrait-library">${chips}</div>`
+        : '<p class="hint">Nothing learned yet. Pick a hero on your next match and it lands here.</p>'}`;
+    for (const button of portraitBox.querySelectorAll('button[data-forget]')) {
+      button.addEventListener('click', async () => {
+        if (!confirm(`Forget the learned portraits for ${button.dataset.name}? `
+                     + 'Your saved matches are not affected — only the recognition.')) return;
+        try {
+          const result = await api.del('/api/reference/hero-portraits/' + button.dataset.forget);
+          toast(`Forgot ${result.forgotten} portrait(s) for ${result.hero}.`);
+          showPortraits();
+        } catch (error) { toast(error.message); }
+      });
+    }
+  }
+
   const backupList = node.querySelector('[data-role="backups"]');
   async function showBackups() {
     const backups = await api.get('/api/export/backups');
@@ -1515,6 +1694,7 @@ async function renderSettings() {
         : 'There was nothing to delete.';
       toast(result.total_rows ? `Cleared ${result.total_rows} rows.` : 'Already empty.');
       showBackups();
+      showPortraits();
     } catch (error) {
       clearResult.textContent = '';
       toast(error.message);
@@ -1525,6 +1705,7 @@ async function renderSettings() {
   view().appendChild(node);
   showBackups();
   showSeasons();
+  showPortraits();
 }
 
 /* ------------------------------------------------------------------ trends

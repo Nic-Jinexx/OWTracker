@@ -108,6 +108,10 @@
     "role": "support"
   },
   {
+    "name": "Cat",
+    "role": "support"
+  },
+  {
     "name": "Illari",
     "role": "support"
   },
@@ -132,6 +136,10 @@
     "role": "support"
   },
   {
+    "name": "Mizuki",
+    "role": "support"
+  },
+  {
     "name": "Moira",
     "role": "support"
   },
@@ -142,6 +150,10 @@
   {
     "name": "Zenyatta",
     "role": "support"
+  },
+  {
+    "name": "D.Mon",
+    "role": "tank"
   },
   {
     "name": "D.Va",

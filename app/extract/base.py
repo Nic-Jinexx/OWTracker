@@ -27,9 +27,12 @@ class ExtractionResult:
     # and the operator can see what the localizer thought it found.
     diagnostics: dict = dataclass_field(default_factory=dict)
     warnings: list[str] = dataclass_field(default_factory=list)
-    # Nameplate crops as raw pixels: `{team, row_index, image}`. The extractor
-    # does not know which draft it is serving and has no business inventing a
-    # path, so the route writes them where uploaded images already live.
+    # Row crops as raw pixels: `{kind, team, row_index, image}`, where kind is
+    # 'nameplate' or 'portrait'. The extractor does not know which draft it is
+    # serving and has no business inventing a path, so the route writes them
+    # where uploaded images already live. Both kinds exist for the same reason:
+    # a name and a hero are each confirmed by the operator, and confirming
+    # either should be a look at the pixels rather than a guess.
     crops: list = dataclass_field(default_factory=list)
 
     @property

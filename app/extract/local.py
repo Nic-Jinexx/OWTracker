@@ -25,7 +25,7 @@ from ..draft import SUGGESTION_ORIGIN, STAT_FIELDS, empty_draft, field
 from . import cells, nameplates, ocr
 from .base import ExtractionResult
 from .glyphs import load_atlas
-from .heroes import load_hero_library, identify_portrait
+from .heroes import identify, load_hero_library, load_learned, portrait_signature
 from .localize import localize
 from .reader import read_cell
 
@@ -46,11 +46,17 @@ class LocalExtractor:
     def __init__(self, team_size: int = 6, *,
                  nameplate_library: list[tuple[int, str]] | None = None,
                  nameplate_max_distance: int = 64,
+                 hero_library: dict[str, list[str]] | None = None,
                  hero_max_distance: int = 8,
                  read_names: bool | None = None):
         self.team_size = team_size
         self.nameplate_library = nameplate_library or []
         self.nameplate_max_distance = nameplate_max_distance
+        # Injected for the same reason the nameplate library is: half of it now
+        # lives in the database (`hero_portraits`) and this class holds no
+        # connection. None means "shipped library only", which is what a script
+        # or a test that constructs this bare should get.
+        self.hero_library = load_hero_library() if hero_library is None else hero_library
         self.hero_max_distance = hero_max_distance
         # None means "use it if it is installed"; False turns it off even where
         # it is. Either way it is ANDed with availability, so asking for name
@@ -62,15 +68,27 @@ class LocalExtractor:
     # -- library availability -------------------------------------------
 
     @staticmethod
-    def reference_status() -> dict:
+    def reference_status(conn=None) -> dict:
         """What the extractor has to work with. Surfaced in the UI so a
         missing atlas reads as 'not built yet' rather than 'extraction is
-        broken'."""
+        broken'.
+
+        `conn` is optional so this stays callable from a script, but passing one
+        is what makes the hero numbers honest: most of the library is learned,
+        and reporting only the shipped file would tell an operator who has
+        taught it thirty heroes that they have ten.
+        """
         glyphs = sorted(paths.GLYPHS_DIR.glob("*.png")) if paths.GLYPHS_DIR.exists() else []
+        shipped = load_hero_library()
+        learned = load_learned(conn) if conn is not None else {}
+        known = set(shipped) | set(learned)
         return {
             "glyph_atlas": [p.stem for p in glyphs],
             "glyph_atlas_ready": len(glyphs) >= 10,
-            "hero_hashes_ready": paths.HERO_HASHES_PATH.exists(),
+            "hero_hashes_ready": bool(known),
+            "heroes_known": len(known),
+            "heroes_shipped": len(shipped),
+            "heroes_learned": len(set(learned) - set(shipped)),
         }
 
     # -- extraction ------------------------------------------------------
@@ -116,7 +134,7 @@ class LocalExtractor:
                                     warnings=warnings, diagnostics=diagnostics)
 
         atlas = load_atlas()
-        heroes = load_hero_library()
+        hero_library = self.hero_library
         # A missing digit atlas used to abort the whole extraction. Hero and
         # nameplate identification need nothing from it, so it now costs the
         # statistics only — there is no reason to throw away the roster because
@@ -125,16 +143,18 @@ class LocalExtractor:
             warnings.append(
                 "The digit atlas (seed/glyphs/) is not built, so statistics were not "
                 "read. Run tools/build_glyph_atlas.py --write.")
-        if not heroes:
+        if not hero_library:
+            # Addressed to the operator, not to a developer: the library is no
+            # longer something only a build script can fill in.
             warnings.append(
-                "No hero portraits are known yet, so heroes are blank. Run "
-                "tools/build_hero_hashes.py to label them once.")
+                "No hero portraits are known yet, so the hero column is blank. Pick "
+                "each hero once and it will be recognized from then on.")
 
         layout = located.layout
         diagnostics["stage"] = "read"
         rows, unread = [], []
         crops: list[dict] = []
-        recognized = portraits_read = suggested = 0
+        recognized = portraits_read = portraits_unknown = suggested = 0
 
         for block in layout.teams:
             team = TEAM_FROM_BLOCK[block.team]
@@ -154,13 +174,27 @@ class LocalExtractor:
                             unread.append(
                                 f"{team} row {index + 1} {column}: {reading.problem}")
 
-                if heroes:
-                    hero = identify_portrait(image, layout, block, index,
-                                             heroes, self.hero_max_distance)
-                    if hero.identified:
-                        portraits_read += 1
-                        row["hero_name"] = hero.name       # resolved to an id by the route
-                        row["hero_confidence"] = hero.confidence
+                # The portrait hash is kept whether or not it identifies
+                # anything. An *unrecognized* portrait is precisely the one
+                # worth learning, and it can only be learned if its hash
+                # survives as far as the commit path — so this is computed
+                # unconditionally, and the crop travels with it so the review
+                # grid can show the operator the face they are naming.
+                portrait = cells.portrait_image(image, layout, block, index)
+                signature = portrait_signature(portrait)
+                if signature:
+                    row["portrait_phash"] = signature
+                    crops.append({"kind": "portrait", "team": team,
+                                  "row_index": index, "image": portrait})
+                    if hero_library:
+                        hero = identify(signature, hero_library,
+                                        self.hero_max_distance)
+                        if hero.identified:
+                            portraits_read += 1
+                            row["hero_name"] = hero.name   # resolved to an id by the route
+                            row["hero_confidence"] = hero.confidence
+                        else:
+                            portraits_unknown += 1
 
                 # The nameplate crop travels as pixels, not as a path: the
                 # extractor does not know which draft it is serving, and the
@@ -170,7 +204,8 @@ class LocalExtractor:
                 if fingerprint:
                     row["nameplate_phash"] = fingerprint
                     row["nameplate_width"] = int(plate.shape[1])
-                    crops.append({"team": team, "row_index": index, "image": plate})
+                    crops.append({"kind": "nameplate", "team": team,
+                                  "row_index": index, "image": plate})
                     hit = nameplates.match(fingerprint, self.nameplate_library,
                                            self.nameplate_max_distance)
                     if hit.recognized:
@@ -213,6 +248,7 @@ class LocalExtractor:
         diagnostics["cells_unread"] = len(unread)
         diagnostics["unread"] = unread[:20]
         diagnostics["heroes_identified"] = portraits_read
+        diagnostics["heroes_unknown"] = portraits_unknown
         diagnostics["players_recognized"] = recognized
         diagnostics["names_suggested"] = suggested
         diagnostics["name_reading"] = self.read_names
@@ -225,6 +261,12 @@ class LocalExtractor:
             warnings.append(
                 f"Recognized {recognized} player{'' if recognized == 1 else 's'} from "
                 f"a previous match. Check the names before saving.")
+        if portraits_unknown and hero_library:
+            one = portraits_unknown == 1
+            warnings.append(
+                f"{portraits_unknown} hero portrait{'' if one else 's'} not recognized. "
+                f"Pick {'it' if one else 'them'} from the dropdown and saving this match "
+                f"teaches {'that hero' if one else 'those heroes'} for next time.")
         if detected != self.team_size:
             warnings.append(
                 f"This screenshot is {detected}v{detected}, not {self.team_size}v"

@@ -33,12 +33,20 @@
         <div class="dropzone" data-role="dropzone">
           <input type="file" accept="image/*" multiple hidden data-role="file-input">
           <div class="dropzone-inner">
-            <strong>Drop screenshots here</strong>
+            <strong>Drop screenshots here, or press Ctrl+V to paste</strong>
             <span class="hint">
               Endgame report and/or Tab scoreboard for <em>one</em> match.
               Everything dropped together is treated as the same game.
+              A snip taken with Win+Shift+S can be pasted straight in.
             </span>
           </div>
+        </div>
+        <div class="dropzone-actions">
+          <button type="button" class="chip" data-role="paste">Paste screenshot</button>
+          <span class="hint">
+            Snip with Win+Shift+S, then click Paste — or just press Ctrl+V
+            anywhere on this page. No need to save a file first.
+          </span>
         </div>
         <div class="attached" data-role="attached"></div>
         <div class="extractor-note hint" data-role="extractor-note"></div>
@@ -319,6 +327,16 @@
         <button type="button" class="chip" data-role="season-add">Add season</button>
       </div>
       <div data-role="seasons"></div>
+
+      <h2 style="margin-top:28px">Hero portraits</h2>
+      <p class="hint">
+        The app ships knowing a handful of hero portraits and learns the rest
+        from you: every hero you pick in the review grid is recognized by itself
+        from then on. If it starts calling the wrong portrait a hero, forget
+        that hero here and name it again on your next match. Your saved matches
+        are not affected.
+      </p>
+      <div data-role="portraits"></div>
 
       <h2 style="margin-top:28px">Your data</h2>
       <p class="hint">
