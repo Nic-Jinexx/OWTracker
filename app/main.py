@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import paths
+from . import __version__
 from .db import init_db
 from .routes import (
     debug,
@@ -43,7 +44,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="OWTracker", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="OWTracker", version=__version__, lifespan=lifespan)
 
 app.include_router(reference.router)
 app.include_router(settings_routes.router)
